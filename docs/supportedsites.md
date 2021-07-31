@@ -243,6 +243,7 @@
  - **dlive:stream**
  - **dlive:vod**
  - **Dotsub**
+ - **Douyin**
  - **DouyuShow**
  - **DouyuTV**: 斗鱼
  - **DPlay**
@@ -701,6 +702,7 @@
  - **Photobucket**
  - **Picarto**
  - **PicartoVod**
+ - **Piczel**
  - **Piksel**
  - **Pinkbike**
  - **Pinterest**
@@ -822,6 +824,7 @@
  - **savefrom.net**
  - **SBS**: sbs.com.au
  - **schooltv**
+ - **ScienceChannel**
  - **screen.yahoo:search**: Yahoo screen search
  - **Screencast**
  - **ScreencastOMatic**
@@ -1078,6 +1081,7 @@
  - **VideoPress**
  - **Vidio**
  - **VidLii**
+ - **vidlox**: vidlox
  - **vidme**
  - **vidme:user**
  - **vidme:user:likes**
@@ -1114,6 +1118,7 @@
  - **Vodlocker**
  - **VODPl**
  - **VODPlatform**
+ - **voe**: VOE.SX
  - **VoiceRepublic**
  - **Voot**
  - **VoxMedia**
@@ -1188,6 +1193,7 @@
  - **yandexmusic:artist:albums**: Яндекс.Музыка - Артист - Альбомы
  - **yandexmusic:artist:tracks**: Яндекс.Музыка - Артист - Треки
  - **yandexmusic:playlist**: Яндекс.Музыка - Плейлист
+ - **yandexmusic:privatetrack**: Яндекс.Музыка - Трек
  - **yandexmusic:track**: Яндекс.Музыка - Трек
  - **YandexVideo**
  - **YapFiles**
