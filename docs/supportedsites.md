@@ -671,6 +671,7 @@
  - **orf:oberoesterreich**: Radio Oberösterreich
  - **orf:oe1**: Radio Österreich 1
  - **orf:oe3**: Radio Österreich 3
+ - **orf:radiothek**: radiothek.orf.at
  - **orf:salzburg**: Radio Salzburg
  - **orf:steiermark**: Radio Steiermark
  - **orf:tirol**: Radio Tirol
