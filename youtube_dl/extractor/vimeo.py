@@ -528,7 +528,13 @@ class VimeoIE(VimeoBaseInfoExtractor):
             'url': 'https://vimeo.com/581039021/9603038895',
             'info_dict': {
                 'id': '581039021',
+                # these have to be provided but we don't care
                 'ext': 'mp4',
+                'timestamp': 1627621014,
+                'title': 're:.+',
+                'uploader_id': 're:.+',
+                'uploader': 're:.+',
+                'upload_date': r're:\d+',
             },
             'params': {
                 'skip_download': True,
