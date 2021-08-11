@@ -1,6 +1,8 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import re
+
 from .common import InfoExtractor
 from ..compat import compat_str
 from ..utils import (
@@ -13,7 +15,7 @@ from ..utils import (
 
 
 class RumbleEmbedIE(InfoExtractor):
-    _VALID_URL = r'https?://(?:www\.)?rumble\.com/embed/(?:[0-9a-z]+\.)?(?P<id>[0-9a-z]+)'
+    _VALID_URL = r'https?://(?:www\.)?rumble\.com/(?:embed/(?:[0-9a-z]+\.)?(?P<id>[0-9a-z]+)|(.*?)\.html)'
     _TESTS = [{
         'url': 'https://rumble.com/embed/v5pv5f',
         'md5': '36a18a049856720189f30977ccbb2c34',
@@ -27,10 +29,18 @@ class RumbleEmbedIE(InfoExtractor):
     }, {
         'url': 'https://rumble.com/embed/ufe9n.v5pv5f',
         'only_matching': True,
+    }, {
+        'url': 'https://rumble.com/vhlrar-mike-lindell-to-confront-brian-kemp-and-doug-ducey-over-election-fraud.html',
+        'only_matching': True,
     }]
 
     def _real_extract(self, url):
-        video_id = self._match_id(url)
+        if re.match(r'https?://(?:www\.)?rumble\.com/(.*?)\.html', url):
+            video_id = ""
+            content, urlh = self._download_webpage_handle(url, video_id)
+            video_id = re.findall(r'"embedUrl":"https://rumble\.com/embed/(.*?)/"', content)[0]
+        else:
+            video_id = self._match_id(url)
         video = self._download_json(
             'https://rumble.com/embedJS/', video_id,
             query={'request': 'video', 'v': video_id})
