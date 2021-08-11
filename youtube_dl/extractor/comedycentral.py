@@ -25,6 +25,9 @@ class ComedyCentralIE(MTVServicesInfoExtractor):
             'timestamp': 1598670000,
             'upload_date': '20200829',
         },
+        'params': {
+            'hls-prefer-native': False,
+        },
     }, {
         'url': 'http://www.cc.com/episodes/pnzzci/drawn-together--american-idol--parody-clip-show-season-3-ep-314',
         'only_matching': True,
@@ -40,6 +43,9 @@ class ComedyCentralIE(MTVServicesInfoExtractor):
             'description': 'md5:f877effd54484878f0aaddbe418314f4',
             'timestamp': 1628125200,
             'upload_date': '20210805',
+        },
+        'params': {
+            'hls-prefer-native': False,
         },
     }, ]
 
