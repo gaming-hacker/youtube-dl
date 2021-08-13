@@ -5,29 +5,20 @@ clean:
 	find . -name "*.pyc" -delete
 	find . -name "*.class" -delete
 
-PREFIX ?= /usr/local
-BINDIR ?= $(PREFIX)/bin
-MANDIR ?= $(PREFIX)/man
-SHAREDIR ?= $(PREFIX)/share
-PYTHON ?= /usr/bin/env python
+PREFIX = /Users/glen/local
+BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/share/man
+SHAREDIR = $(PREFIX)/share
+PYTHON = /usr/bin/env python3.9
 
-# set SYSCONFDIR to /etc if PREFIX=/usr or PREFIX=/usr/local
-SYSCONFDIR = $(shell if [ $(PREFIX) = /usr -o $(PREFIX) = /usr/local ]; then echo /etc; else echo $(PREFIX)/etc; fi)
 
 # set markdown input format to "markdown-smart" for pandoc version 2 and to "markdown" for pandoc prior to version 2
 MARKDOWN = $(shell if [ `pandoc -v | head -n1 | cut -d" " -f2 | head -c1` = "2" ]; then echo markdown-smart; else echo markdown; fi)
 
-install: youtube-dl youtube-dl.1 youtube-dl.bash-completion youtube-dl.zsh youtube-dl.fish
-	install -d $(DESTDIR)$(BINDIR)
+install: youtube-dl youtube-dl.1 youtube-dl.bash-completion
 	install -m 755 youtube-dl $(DESTDIR)$(BINDIR)
-	install -d $(DESTDIR)$(MANDIR)/man1
 	install -m 644 youtube-dl.1 $(DESTDIR)$(MANDIR)/man1
-	install -d $(DESTDIR)$(SYSCONFDIR)/bash_completion.d
-	install -m 644 youtube-dl.bash-completion $(DESTDIR)$(SYSCONFDIR)/bash_completion.d/youtube-dl
-	install -d $(DESTDIR)$(SHAREDIR)/zsh/site-functions
-	install -m 644 youtube-dl.zsh $(DESTDIR)$(SHAREDIR)/zsh/site-functions/_youtube-dl
-	install -d $(DESTDIR)$(SYSCONFDIR)/fish/completions
-	install -m 644 youtube-dl.fish $(DESTDIR)$(SYSCONFDIR)/fish/completions/youtube-dl.fish
+	install -m 644 youtube-dl.bash-completion /opt/local/etc/bash_completion.d/youtube-dl
 
 codetest:
 	flake8 .
