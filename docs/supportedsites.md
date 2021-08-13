@@ -244,6 +244,7 @@
  - **Disney**
  - **dlive:stream**
  - **dlive:vod**
+ - **DoodStream**
  - **Dotsub**
  - **Douyin**
  - **DouyuShow**
