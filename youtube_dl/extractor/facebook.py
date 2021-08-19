@@ -139,7 +139,7 @@ class FacebookIE(InfoExtractor):
             'upload_date': '20160223',
             'uploader': 'Barack Obama',
         },
-        'skip': 'Gif on giphy.com and gone',
+        'skip': 'Gif on giphy.com gone',
     }, {
         # have 1080P, but only up to 720p in swf params
         # data.video.story.attachments[].media
@@ -163,10 +163,12 @@ class FacebookIE(InfoExtractor):
         'info_dict': {
             'id': '1417995061575415',
             'ext': 'mp4',
-            'title': 'md5:1db063d6a8c13faa8da727817339c857',
-            'timestamp': 1486648217,
+            'title': 'Yaroslav Korpan - Довгоочікуване відео',
+            'description': 'Довгоочікуване відео',
+            'timestamp': 1486648771,
             'upload_date': '20170209',
             'uploader': 'Yaroslav Korpan',
+            'uploader_id': '100000948048708',
         },
         'params': {
             'skip_download': True,
@@ -182,17 +184,23 @@ class FacebookIE(InfoExtractor):
             'uploader': 'La Guía Del Varón',
             'thumbnail': r're:^https?://.*',
         },
-        'skip': 'Requires logging in',
+        'params': {
+            'skip_download': True,
+        },
+        # TODO: parse this webpage
+        'skip': 'Cannot parse webpage well',
     }, {
         # data.node.comet_sections.content.story.attachments[].style_type_renderer.attachment.media
         'url': 'https://www.facebook.com/groups/1024490957622648/permalink/1396382447100162/',
         'info_dict': {
-            'id': '1396382447100162',
+            'id': '202882990186699',
             'ext': 'mp4',
-            'title': 'md5:19a428bbde91364e3de815383b54a235',
-            'timestamp': 1486035494,
+            'title': 'Elisabeth Ahtn - Hello? Yes your uber ride is here\n* Jukin...',
+            'description': 'Hello? Yes your uber ride is here\n* Jukin Media Verified *\nFind this video and others like it by visiting...',
+            'timestamp': 1486035513,
             'upload_date': '20170202',
             'uploader': 'Elisabeth Ahtn',
+            'uploader_id': '100013949973717',
         },
         'params': {
             'skip_download': True,
@@ -233,8 +241,12 @@ class FacebookIE(InfoExtractor):
         'info_dict': {
             'id': '359649331226507',
             'ext': 'mp4',
-            'title': '#ESLOne VoD - Birmingham Finals Day#1 Fnatic vs. @Evil Geniuses',
+            'title': 'Fnatic vs. EG - Group A - Opening Match - ESL One Birmingham Day 1',
+            'description': '#ESLOne VoD - Birmingham Finals Day#1 Fnatic vs. @Evil Geniuses',
+            'timestamp': 1527084179,
+            'upload_date': '20180523',
             'uploader': 'ESL One Dota 2',
+            'uploader_id': '234218833769558',
         },
         'params': {
             'skip_download': True,
@@ -282,6 +294,7 @@ class FacebookIE(InfoExtractor):
             'upload_date': '20161122',
             'timestamp': 1479793574,
         },
+        'skip': 'No video',
     }, {
         # data.video.creation_story.attachments[].media
         'url': 'https://www.facebook.com/watch/live/?v=1823658634322275',
@@ -383,6 +396,56 @@ class FacebookIE(InfoExtractor):
     def _extract_from_url(self, url, video_id):
         webpage = self._download_webpage(
             url.replace('://m.facebook.com/', '://www.facebook.com/'), video_id)
+
+        def extract_metadata(webpage):
+            video_title = self._html_search_regex(
+                r'<h2\s+[^>]*class="uiHeaderTitle"[^>]*>([^<]*)</h2>', webpage,
+                'title', default=None)
+            if not video_title:
+                video_title = self._html_search_regex(
+                    r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(.*?)</span>',
+                    webpage, 'alternative title', default=None)
+            if not video_title:
+                video_title = self._html_search_meta(
+                    ['og:title', 'twitter:title', 'description'],
+                    webpage, 'title', default=None)
+            if video_title:
+                video_title = limit_length(video_title, 80)
+            else:
+                video_title = 'Facebook video #%s' % video_id
+            description = self._html_search_meta(
+                ['description', 'og:description', 'twitter:description'],
+                webpage, 'description', default=None)
+            uploader = clean_html(get_element_by_id(
+                'fbPhotoPageAuthorName', webpage)) or self._search_regex(
+                r'ownerName\s*:\s*"([^"]+)"', webpage, 'uploader',
+                default=None) or self._og_search_title(webpage, fatal=False)
+            timestamp = int_or_none(self._search_regex(
+                r'<abbr[^>]+data-utime=["\'](\d+)', webpage,
+                'timestamp', default=None))
+            thumbnail = self._html_search_meta(
+                ['og:image', 'twitter:image'], webpage, 'thumbnail', default=None)
+            # some webpages contain unretrievable thumbnail urls
+            # like https://lookaside.fbsbx.com/lookaside/crawler/media/?media_id=10155168902769113&get_thumbnail=1
+            # in https://www.facebook.com/yaroslav.korpan/videos/1417995061575415/
+            if thumbnail and not re.search(r'\.(?:jpg|png)', thumbnail):
+                thumbnail = None
+            view_count = parse_count(self._search_regex(
+                r'\bviewCount\s*:\s*["\']([\d,.]+)', webpage, 'view count',
+                default=None))
+            info_dict = {
+                'title': video_title,
+                'description': description,
+                'uploader': uploader,
+                'timestamp': timestamp,
+                'thumbnail': thumbnail,
+                'view_count': view_count,
+            }
+            info_json_ld = self._search_json_ld(webpage, video_id, default={})
+            if info_json_ld.get('title'):
+                info_json_ld['title'] = limit_length(
+                    re.sub(r'\s*\|\s*Facebook$', '', info_json_ld['title']), 80)
+            return merge_dicts(info_json_ld, info_dict)
 
         video_data = None
 
@@ -516,7 +579,15 @@ class FacebookIE(InfoExtractor):
                     if not entries:
                         parse_graphql_video(video)
 
-                return self.playlist_result(entries, video_id)
+                if len(entries) > 1:
+                    return self.playlist_result(entries, video_id)
+
+                video_info = entries[0]
+                webpage_info = extract_metadata(webpage)
+                # honor precise duration in video info
+                if video_info.get('duration'):
+                    webpage_info['duration'] = video_info['duration']
+                return merge_dicts(webpage_info, video_info)
 
         if not video_data:
             m_msg = re.search(r'class="[^"]*uiInterstitialContent[^"]*"><div>(.*?)</div>', webpage)
@@ -636,56 +707,14 @@ class FacebookIE(InfoExtractor):
 
         process_formats(formats)
 
-        video_title = self._html_search_regex(
-            r'<h2\s+[^>]*class="uiHeaderTitle"[^>]*>([^<]*)</h2>', webpage,
-            'title', default=None)
-        if not video_title:
-            video_title = self._html_search_regex(
-                r'(?s)<span class="fbPhotosPhotoCaption".*?id="fbPhotoPageCaption"><span class="hasCaption">(.*?)</span>',
-                webpage, 'alternative title', default=None)
-        if not video_title:
-            video_title = self._html_search_meta(
-                ['og:title', 'twitter:title', 'description'],
-                webpage, 'title', default=None)
-        if video_title:
-            video_title = limit_length(video_title, 80)
-        else:
-            video_title = 'Facebook video #%s' % video_id
-        description = self._html_search_meta(
-            ['description', 'og:description', 'twitter:description'],
-            webpage, 'description', default=None)
-        uploader = clean_html(get_element_by_id(
-            'fbPhotoPageAuthorName', webpage)) or self._search_regex(
-            r'ownerName\s*:\s*"([^"]+)"', webpage, 'uploader',
-            default=None) or self._og_search_title(webpage, fatal=False)
-        timestamp = int_or_none(self._search_regex(
-            r'<abbr[^>]+data-utime=["\'](\d+)', webpage,
-            'timestamp', default=None))
-        thumbnail = self._html_search_meta(['og:image', 'twitter:image'], webpage)
-
-        view_count = parse_count(self._search_regex(
-            r'\bviewCount\s*:\s*["\']([\d,.]+)', webpage, 'view count',
-            default=None))
-
         info_dict = {
             'id': video_id,
-            'title': video_title,
-            'description': description,
             'formats': formats,
-            'uploader': uploader,
-            'timestamp': timestamp,
-            'thumbnail': thumbnail,
-            'view_count': view_count,
             'subtitles': subtitles,
         }
+        info_dict.update(extract_metadata(webpage))
 
-        info_json_ld = self._search_json_ld(
-            webpage, video_id, expected_type='VideoObject', default={})
-        if info_json_ld.get('title'):
-            info_json_ld['title'] = limit_length(
-                re.sub(r'\s*\|\s*Facebook$', '', info_json_ld['title']), 80)
-
-        return merge_dicts(info_json_ld, info_dict)
+        return info_dict
 
     def _real_extract(self, url):
         video_id = self._match_id(url)
