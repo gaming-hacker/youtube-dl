@@ -234,12 +234,10 @@ class MegaphoneChannelIE(MegaphoneIE):
             playlist_json, video_id,
             transform_source=lambda s: self._parse_json(s, video_id, transform_source=js_to_json))
         entries = []
-        ep_num = 0
         ep_list = None
         # Support --no-playlist to get the first item when no explicit selection
         noplaylist = self._downloader.params.get('noplaylist')
-        for episode in playlist_json:
-            ep_num += 1
+        for ep_num, episode in enumerate(playlist_json):
             ep_url = episode.get('mp3')
             ep_title = episode.get('title')
             ep_id = episode.get('uid')
@@ -249,7 +247,7 @@ class MegaphoneChannelIE(MegaphoneIE):
                 'url': ep_url,
                 'id': ep_id,
             }
-            if ep_num == 1:
+            if ep_num == 0:
                 # As there are items to process, initialise the public-ep-list
                 ep_list = self._search_regex(
                     r'(?s)<div\s[^>]*?class\s*=\s*("|\')public-ep-list\1[^>]*>.*?(?P<ep_list><div\s[^>]*?id\s*=.+?</div>\s*</div>)\s*</div>',
@@ -262,7 +260,7 @@ class MegaphoneChannelIE(MegaphoneIE):
                     ep_list = try_get(ep_list, compat_etree_fromstring, compat_etree_Element)
             if ep_list is not None:
                 # Use the subset XPath syntax to extract the additional data (counted from 0)
-                ep_info = ep_list.find("div[@id='%d']" % (ep_num - 1))
+                ep_info = ep_list.find("div[@id='%d']" % ep_num)
                 if ep_info is not None:
                     if not ep_title:
                         title = ep_info.find(".//div[@class='ep-title']")
@@ -277,7 +275,7 @@ class MegaphoneChannelIE(MegaphoneIE):
             if not ep_title:
                 continue
             entry['title'] = ep_title
-            if ep_num == 1 and noplaylist:
+            if ep_num == 0 and noplaylist:
                 self.to_screen('Downloading just the first episode because of --no-playlist')
                 return entry
             entries.append(entry)
