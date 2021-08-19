@@ -718,6 +718,7 @@
  - **PlayPlusTV**
  - **PlayStuff**
  - **PlaysTV**
+ - **PlaySuisse**
  - **Playtvak**: Playtvak.cz, iDNES.cz and Lidovky.cz
  - **Playvid**
  - **Playvids**
@@ -908,6 +909,7 @@
  - **Streamable**
  - **streamcloud.eu**
  - **StreamCZ**
+ - **StreamYE**
  - **StreetVoice**
  - **StretchInternet**
  - **stv:player**

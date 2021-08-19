@@ -500,8 +500,9 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     --no-post-overwrites                      Do not overwrite post-processed
                                               files; the post-processed files
                                               are overwritten by default
-    --embed-subs                              Embed subtitles in the video (only
-                                              for mp4, webm and mkv videos)
+    --embed-subs                              Embed subtitles in the video or
+                                              audio (only for mp4, m4a, webm and
+                                              mkv files)
     --embed-thumbnail                         Embed thumbnail in the audio as
                                               cover art
     --add-metadata                            Write metadata to the video file
