@@ -901,9 +901,6 @@ class GenericIE(InfoExtractor):
                 'timestamp': 1349922600,
                 'upload_date': '20121011',
             },
-            'params': {
-                'hls-prefer-native': False,
-            },
         },
         # YouTube embed via <data-embed-url="">
         {
@@ -2230,6 +2227,16 @@ class GenericIE(InfoExtractor):
             # Sibnet embed (https://help.sibnet.ru/?sibnet_video_embed)
             'url': 'https://phpbb3.x-tk.ru/bbcode-video-sibnet-t24.html',
             'only_matching': True,
+        },
+        {
+            # Test Native <video> embed and application of the correct referrer url
+            "url": 'https://streamwo.com/c11cf208',
+            'md5': '64a3e444e10f90051725cc1776682b06',
+            'info_dict': {
+                'id': 'zrxKAY8',
+                'ext': 'mp4',
+                'title': "Imgur"
+            }
         },
     ]
 
