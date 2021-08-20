@@ -414,6 +414,7 @@
  - **ivi:compilation**: ivi.ru compilations
  - **ivideon**: Ivideon TV
  - **Iwara**
+ - **iwara:playlist**
  - **Izlesene**
  - **Jamendo**
  - **JamendoAlbum**
@@ -509,6 +510,9 @@
  - **MediasiteNamedCatalog**
  - **Medici**
  - **megaphone.fm**: megaphone.fm embedded players
+ - **megaphone.fm:channel**: megaphone.fm channel
+ - **megaphone.fm:episode**: megaphone.fm episode
+ - **megaphone.fm:playlist**: megaphone.fm playlist
  - **Meipai**: 美拍
  - **MelonVOD**
  - **META**
