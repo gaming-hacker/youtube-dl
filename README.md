@@ -173,6 +173,11 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                               directory.
     --flat-playlist                           Do not extract the videos of a
                                               playlist, only list them.
+    --concat-playlist                         Concatenate all videos in a
+                                              playlist into a single video file.
+                                              Useful for services which split up
+                                              full episodes into multiple
+                                              segments.
     --mark-watched                            Mark videos watched (YouTube only)
     --no-mark-watched                         Do not mark videos watched
                                               (YouTube only)
@@ -377,7 +382,7 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                               cookie jar in
     --cookies-from-browser BROWSER[:PROFILE]  Load cookies from a user profile
                                               of the given web browser.
-                                              Currently supported browsers are:
+                                              Currently supported browsers are: 
                                               brave|chrome|chromium|edge|firefox
                                               |opera|safari|vivaldi. You can
                                               specify the user profile name or
