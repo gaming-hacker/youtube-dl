@@ -943,6 +943,17 @@ class TwitchClipsIE(TwitchBaseIE):
         if data:
             clip = try_get(data, lambda x: x['data']['clip'], dict) or clip
 
+        access_token = self._download_gql(
+            video_id, [{
+                'operationName': 'VideoAccessToken_Clip',
+                'variables': {
+                    'slug': video_id,
+                },
+            }],
+            'Downloading access token GraphQL')
+        access_token = try_get(
+            access_token, lambda x: x[0]['data']['clip']['playbackAccessToken'])
+
         formats = []
         for option in clip.get('videoQualities', []):
             if not isinstance(option, dict):
@@ -950,6 +961,14 @@ class TwitchClipsIE(TwitchBaseIE):
             source = url_or_none(option.get('sourceURL'))
             if not source:
                 continue
+            if access_token:
+                source = "%s%s%s" % (
+                    source,
+                    "&" if "?" in source else "?",
+                    compat_urllib_parse_urlencode({
+                        "sig": access_token.get('signature'),
+                        "token": access_token.get('value'),
+                    }))
             formats.append({
                 'url': update_url_query(source, access_query),
                 'format_id': option.get('quality'),
