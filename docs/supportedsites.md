@@ -782,6 +782,7 @@
  - **RedBullTV**
  - **RedBullTVRrnContent**
  - **Reddit**
+ - **RedditG**
  - **RedditR**
  - **RedTube**
  - **RegioTV**
@@ -1105,6 +1106,7 @@
  - **vimeo**
  - **vimeo:album**
  - **vimeo:channel**
+ - **vimeo:event**
  - **vimeo:group**
  - **vimeo:likes**: Vimeo user likes
  - **vimeo:ondemand**
