@@ -1,20 +1,96 @@
 [![Build Status](https://github.com/ytdl-org/youtube-dl/workflows/CI/badge.svg)](https://github.com/ytdl-org/youtube-dl/actions?query=workflow%3ACI)
 
+youtube-dl - download videos from youtube.com or other video platforms
 
-youtube-dl - download videos from youtube.com or other video platforms.
 
-- [Installation](#installation)
-- [Description](#description)
-- [Options](#options)
-- [Configuration](#configuration)
-- [Output template](#output-template)
-- [Format selection](#format-selection)
-- [Video selection](#video-selection)
+- [INSTALLATION](#installation)
+- [DESCRIPTION](#description)
+- [OPTIONS](#options)
+  - [Network Options:](#network-options)
+  - [Geo Restriction:](#geo-restriction)
+  - [Video Selection:](#video-selection)
+  - [Download Options:](#download-options)
+  - [Filesystem Options:](#filesystem-options)
+  - [Thumbnail Options:](#thumbnail-options)
+  - [Verbosity / Simulation Options:](#verbosity--simulation-options)
+  - [Workarounds:](#workarounds)
+  - [Video Format Options:](#video-format-options)
+  - [Subtitle Options:](#subtitle-options)
+  - [Authentication Options:](#authentication-options)
+  - [Adobe Pass Options:](#adobe-pass-options)
+  - [Post-processing Options:](#post-processing-options)
+- [CONFIGURATION](#configuration)
+    - [Authentication with `.netrc` file](#authentication-with-netrc-file)
+- [OUTPUT TEMPLATE](#output-template)
+      - [Output template and Windows batch files](#output-template-and-windows-batch-files)
+      - [Output template examples](#output-template-examples)
+- [FORMAT SELECTION](#format-selection)
+      - [Format selection examples](#format-selection-examples)
+- [VIDEO SELECTION](#video-selection-1)
 - [FAQ](#faq)
-- [Developer instructions](#developer-instructions)
-- [Embedding youtube-dl](#embedding-youtube-dl)
-- [Bugs](#bugs)
-- [Copyright](#copyright)
+    - [How do I update youtube-dl?](#how-do-i-update-youtube-dl)
+    - [youtube-dl is extremely slow to start on Windows](#youtube-dl-is-extremely-slow-to-start-on-windows)
+    - [I'm getting an error `Unable to extract OpenGraph title` on YouTube playlists](#im-getting-an-error-unable-to-extract-opengraph-title-on-youtube-playlists)
+    - [I'm getting an error when trying to use output template: `error: using output template conflicts with using title, video ID or auto number`](#im-getting-an-error-when-trying-to-use-output-template-error-using-output-template-conflicts-with-using-title-video-id-or-auto-number)
+    - [Do I always have to pass `-citw`?](#do-i-always-have-to-pass--citw)
+    - [Can you please put the `-b` option back?](#can-you-please-put-the--b-option-back)
+    - [I get HTTP error 402 when trying to download a video. What's this?](#i-get-http-error-402-when-trying-to-download-a-video-whats-this)
+    - [Do I need any other programs?](#do-i-need-any-other-programs)
+    - [I have downloaded a video but how can I play it?](#i-have-downloaded-a-video-but-how-can-i-play-it)
+    - [I extracted a video URL with `-g`, but it does not play on another machine / in my web browser.](#i-extracted-a-video-url-with--g-but-it-does-not-play-on-another-machine--in-my-web-browser)
+    - [ERROR: no fmt_url_map or conn information found in video info](#error-no-fmt_url_map-or-conn-information-found-in-video-info)
+    - [ERROR: unable to download video](#error-unable-to-download-video)
+    - [Video URL contains an ampersand and I'm getting some strange output `[1] 2839` or `'v' is not recognized as an internal or external command`](#video-url-contains-an-ampersand-and-im-getting-some-strange-output-1-2839-or-v-is-not-recognized-as-an-internal-or-external-command)
+    - [ExtractorError: Could not find JS function u'OF'](#extractorerror-could-not-find-js-function-uof)
+    - [HTTP Error 429: Too Many Requests or 402: Payment Required](#http-error-429-too-many-requests-or-402-payment-required)
+    - [SyntaxError: Non-ASCII character](#syntaxerror-non-ascii-character)
+    - [What is this binary file? Where has the code gone?](#what-is-this-binary-file-where-has-the-code-gone)
+    - [The exe throws an error due to missing `MSVCR100.dll`](#the-exe-throws-an-error-due-to-missing-msvcr100dll)
+    - [On Windows, how should I set up ffmpeg and youtube-dl? Where should I put the exe files?](#on-windows-how-should-i-set-up-ffmpeg-and-youtube-dl-where-should-i-put-the-exe-files)
+    - [How do I put downloads into a specific folder?](#how-do-i-put-downloads-into-a-specific-folder)
+    - [How do I download a video starting with a `-`?](#how-do-i-download-a-video-starting-with-a--)
+    - [How do I pass cookies to youtube-dl?](#how-do-i-pass-cookies-to-youtube-dl)
+    - [How do I stream directly to media player?](#how-do-i-stream-directly-to-media-player)
+    - [How do I download only new videos from a playlist?](#how-do-i-download-only-new-videos-from-a-playlist)
+    - [Should I add `--hls-prefer-native` into my config?](#should-i-add---hls-prefer-native-into-my-config)
+    - [Can you add support for this anime video site, or site which shows current movies for free?](#can-you-add-support-for-this-anime-video-site-or-site-which-shows-current-movies-for-free)
+    - [How can I speed up work on my issue?](#how-can-i-speed-up-work-on-my-issue)
+    - [How can I detect whether a given URL is supported by youtube-dl?](#how-can-i-detect-whether-a-given-url-is-supported-by-youtube-dl)
+- [Why do I need to go through that much red tape when filing bugs?](#why-do-i-need-to-go-through-that-much-red-tape-when-filing-bugs)
+- [DEVELOPER INSTRUCTIONS](#developer-instructions)
+    - [Adding support for a new site](#adding-support-for-a-new-site)
+  - [youtube-dl coding conventions](#youtube-dl-coding-conventions)
+    - [Mandatory and optional metafields](#mandatory-and-optional-metafields)
+      - [Example](#example)
+    - [Provide fallbacks](#provide-fallbacks)
+      - [Example](#example-1)
+    - [Regular expressions](#regular-expressions)
+      - [Don't capture groups you don't use](#dont-capture-groups-you-dont-use)
+        - [Example](#example-2)
+      - [Make regular expressions relaxed and flexible](#make-regular-expressions-relaxed-and-flexible)
+        - [Example](#example-3)
+    - [Long lines policy](#long-lines-policy)
+    - [Inline values](#inline-values)
+      - [Example](#example-4)
+    - [Collapse fallbacks](#collapse-fallbacks)
+      - [Example](#example-5)
+    - [Trailing parentheses](#trailing-parentheses)
+      - [Example](#example-6)
+    - [Use convenience conversion and parsing functions](#use-convenience-conversion-and-parsing-functions)
+      - [More examples](#more-examples)
+        - [Safely extract optional description from parsed JSON](#safely-extract-optional-description-from-parsed-json)
+        - [Safely extract more optional metadata](#safely-extract-more-optional-metadata)
+- [EMBEDDING YOUTUBE-DL](#embedding-youtube-dl)
+- [BUGS](#bugs)
+    - [Is the description of the issue itself sufficient?](#is-the-description-of-the-issue-itself-sufficient)
+    - [Are you using the latest version?](#are-you-using-the-latest-version)
+    - [Is the issue already documented?](#is-the-issue-already-documented)
+    - [Why are existing options not enough?](#why-are-existing-options-not-enough)
+    - [Is there enough context in your bug report?](#is-there-enough-context-in-your-bug-report)
+    - [Does the issue involve one problem, and one problem only?](#does-the-issue-involve-one-problem-and-one-problem-only)
+    - [Is anyone going to need the feature?](#is-anyone-going-to-need-the-feature)
+    - [Is your question about youtube-dl?](#is-your-question-about-youtube-dl)
+- [COPYRIGHT](#copyright)
 
 # INSTALLATION
 
@@ -33,7 +109,7 @@ Windows users can [download an .exe file](https://yt-dl.org/latest/youtube-dl.ex
 You can also use pip:
 
     sudo -H pip install --upgrade youtube-dl
-    
+
 This command will update youtube-dl if you have already installed it. See the [pypi page](https://pypi.python.org/pypi/youtube_dl) for more information.
 
 macOS users can install youtube-dl with [Homebrew](https://brew.sh/):
@@ -301,7 +377,7 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                               cookie jar in
     --cookies-from-browser BROWSER[:PROFILE]  Load cookies from a user profile
                                               of the given web browser.
-                                              Currently supported browsers are: 
+                                              Currently supported browsers are:
                                               brave|chrome|chromium|edge|firefox
                                               |opera|safari|vivaldi. You can
                                               specify the user profile name or
@@ -631,7 +707,7 @@ The basic usage is not to set any template arguments when downloading a single f
  - `is_live` (boolean): Whether this video is a live stream or a fixed-length video
  - `start_time` (numeric): Time in seconds where the reproduction should start, as specified in the URL
  - `end_time` (numeric): Time in seconds where the reproduction should end, as specified in the URL
- - `format` (string): A human-readable description of the format 
+ - `format` (string): A human-readable description of the format
  - `format_id` (string): Format code specified by `--format`
  - `format_note` (string): Additional info about the format
  - `width` (numeric): Width of the video
@@ -743,7 +819,7 @@ The general syntax for format selection is `--format FORMAT` or shorter `-f FORM
 
 **tl;dr:** [navigate me to examples](#format-selection-examples).
 
-The simplest case is requesting a specific format, for example with `-f 22` you can download the format with format code equal to 22. You can get the list of available format codes for particular video using `--list-formats` or `-F`. Note that these format codes are extractor specific. 
+The simplest case is requesting a specific format, for example with `-f 22` you can download the format with format code equal to 22. You can get the list of available format codes for particular video using `--list-formats` or `-F`. Note that these format codes are extractor specific.
 
 You can also use a file extension (currently `3gp`, `aac`, `flv`, `m4a`, `mp3`, `mp4`, `ogg`, `wav`, `webm` are supported) to download the best quality format of a particular file extension served as a single file, e.g. `-f webm` will download the best quality format with the `webm` extension served as a single file.
 
@@ -828,7 +904,7 @@ Videos can be filtered by their upload date using the options `--date`, `--dateb
 
  - Absolute dates: Dates in the format `YYYYMMDD`.
  - Relative dates: Dates in the format `(now|today)[+-][0-9](day|week|month|year)(s)?`
- 
+
 Examples:
 
 ```bash
@@ -1185,7 +1261,7 @@ Say you have some source dictionary `meta` that you've fetched as JSON with HTTP
 ```python
 meta = self._download_json(url, video_id)
 ```
-    
+
 Assume at this point `meta`'s layout is:
 
 ```python
@@ -1229,7 +1305,7 @@ description = self._search_regex(
 ```
 
 On failure this code will silently continue the extraction with `description` set to `None`. That is useful for metafields that may or may not be present.
- 
+
 ### Provide fallbacks
 
 When extracting metadata try to do so from multiple sources. For example if `title` is present in several places, try extracting from at least some of them. This makes it more future-proof in case some of the sources become unavailable.
@@ -1277,7 +1353,7 @@ r'(id|ID)=(?P<id>\d+)'
 #### Make regular expressions relaxed and flexible
 
 When using regular expressions try to write them fuzzy, relaxed and flexible, skipping insignificant parts that are more likely to change, allowing both single and double quotes for quoted values and so on.
- 
+
 ##### Example
 
 Say you need to extract `title` from the following HTML code:
@@ -1301,7 +1377,7 @@ title = self._search_regex(
     webpage, 'title', group='title')
 ```
 
-Note how you tolerate potential changes in the `style` attribute's value or switch from using double quotes to single for `class` attribute: 
+Note how you tolerate potential changes in the `style` attribute's value or switch from using double quotes to single for `class` attribute:
 
 The code definitely should not look like:
 
@@ -1404,7 +1480,7 @@ Use `url_or_none` for safe URL processing.
 
 Use `try_get` for safe metadata extraction from parsed JSON.
 
-Use `unified_strdate` for uniform `upload_date` or any `YYYYMMDD` meta field extraction, `unified_timestamp` for uniform `timestamp` extraction, `parse_filesize` for `filesize` extraction, `parse_count` for count meta fields extraction, `parse_resolution`, `parse_duration` for `duration` extraction, `parse_age_limit` for `age_limit` extraction. 
+Use `unified_strdate` for uniform `upload_date` or any `YYYYMMDD` meta field extraction, `unified_timestamp` for uniform `timestamp` extraction, `parse_filesize` for `filesize` extraction, `parse_count` for count meta fields extraction, `parse_resolution`, `parse_duration` for `duration` extraction, `parse_age_limit` for `age_limit` extraction.
 
 Explore [`youtube_dl/utils.py`](https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/utils.py) for more useful convenience functions.
 
