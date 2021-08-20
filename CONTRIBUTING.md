@@ -194,7 +194,7 @@ Say you have some source dictionary `meta` that you've fetched as JSON with HTTP
 ```python
 meta = self._download_json(url, video_id)
 ```
-    
+
 Assume at this point `meta`'s layout is:
 
 ```python
@@ -238,7 +238,7 @@ description = self._search_regex(
 ```
 
 On failure this code will silently continue the extraction with `description` set to `None`. That is useful for metafields that may or may not be present.
- 
+
 ### Provide fallbacks
 
 When extracting metadata try to do so from multiple sources. For example if `title` is present in several places, try extracting from at least some of them. This makes it more future-proof in case some of the sources become unavailable.
@@ -286,7 +286,7 @@ r'(id|ID)=(?P<id>\d+)'
 #### Make regular expressions relaxed and flexible
 
 When using regular expressions try to write them fuzzy, relaxed and flexible, skipping insignificant parts that are more likely to change, allowing both single and double quotes for quoted values and so on.
- 
+
 ##### Example
 
 Say you need to extract `title` from the following HTML code:
@@ -310,7 +310,7 @@ title = self._search_regex(
     webpage, 'title', group='title')
 ```
 
-Note how you tolerate potential changes in the `style` attribute's value or switch from using double quotes to single for `class` attribute: 
+Note how you tolerate potential changes in the `style` attribute's value or switch from using double quotes to single for `class` attribute:
 
 The code definitely should not look like:
 
@@ -413,7 +413,7 @@ Use `url_or_none` for safe URL processing.
 
 Use `try_get` for safe metadata extraction from parsed JSON.
 
-Use `unified_strdate` for uniform `upload_date` or any `YYYYMMDD` meta field extraction, `unified_timestamp` for uniform `timestamp` extraction, `parse_filesize` for `filesize` extraction, `parse_count` for count meta fields extraction, `parse_resolution`, `parse_duration` for `duration` extraction, `parse_age_limit` for `age_limit` extraction. 
+Use `unified_strdate` for uniform `upload_date` or any `YYYYMMDD` meta field extraction, `unified_timestamp` for uniform `timestamp` extraction, `parse_filesize` for `filesize` extraction, `parse_count` for count meta fields extraction, `parse_resolution`, `parse_duration` for `duration` extraction, `parse_age_limit` for `age_limit` extraction.
 
 Explore [`youtube_dl/utils.py`](https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/utils.py) for more useful convenience functions.
 
