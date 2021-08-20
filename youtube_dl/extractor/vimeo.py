@@ -14,6 +14,8 @@ from ..compat import (
     compat_urlparse,
 )
 from ..utils import (
+    NO_DEFAULT,
+    base_url,
     clean_html,
     determine_ext,
     ExtractorError,
@@ -255,6 +257,11 @@ class VimeoBaseInfoExtractor(InfoExtractor):
                             'preference': 1,
                         }
 
+    def _extract_config_url(self, webpage, name, default=NO_DEFAULT):
+        return self._html_search_regex(
+            r'\bdata-config-url\s*=\s*([\'"])(.+?\d)\1', webpage, name,
+            default=default, group=2)
+
 
 class VimeoIE(VimeoBaseInfoExtractor):
     """Information extractor for vimeo.com."""
@@ -270,8 +277,8 @@ class VimeoIE(VimeoBaseInfoExtractor):
                             \.
                         )?
                         vimeo(?:pro)?\.com/
-                        (?!(?:channels|album|showcase)/[^/?#]+/?(?:$|[?#])|[^/]+/review/|ondemand/)
-                        (?:.*?/)??
+                        (?!(?:channels|album|showcase)/[^/?#]+/?(?:$|[?#])|[^/]+/review/|ondemand/|event/)
+                        (?:.*?/)?
                         (?:
                             (?:
                                 play_redirect_hls|
@@ -381,29 +388,6 @@ class VimeoIE(VimeoBaseInfoExtractor):
                 'timestamp': 1380339469,
                 'upload_date': '20130928',
                 'duration': 187,
-            },
-            'expected_warnings': ['Unable to download JSON metadata'],
-        },
-        {
-            'url': 'https://vimeo.com/channels/bestofstaffpicks/543188947',
-            'note': 'channel video with no data-config-url',
-            'info_dict': {
-                'id': '543188947',
-                'ext': 'mp4',
-                'title': "THE CHEMICAL BROTHERS 'THE DARKNESS THAT YOU FEAR' - OFFICIAL VIDEO",
-                'description': 'md5:a3949dd6e4a3dc5161871d195ee46cf0',
-                'uploader_url': r're:https?://(?:www\.)?vimeo\.com/ruffmercy',
-                'uploader_id': 'ruffmercy',
-                'uploader': 'RUFFMERCY',
-                'channel_id': 'bestofstaffpicks',
-                'channel_url': r're:https?://(?:www\.)?vimeo\.com/channels/bestofstaffpicks',
-                'timestamp': 1619693770,
-                'upload_date': '20210429',
-                'duration': 237,
-            },
-            'params': {
-                # avoid selecting DASH/HLS which only send 1 fragment and fail expected size check
-                'format': 'best[protocol=https]',
             },
             'expected_warnings': ['Unable to download JSON metadata'],
         },
@@ -541,27 +525,13 @@ class VimeoIE(VimeoBaseInfoExtractor):
             'only_matching': True,
         },
         {
-            # requires passing unlisted_hash(a52724358e) to load_download_config request
-            'url': 'https://vimeo.com/392479337/a52724358e',
+            'url': 'https://vimeo.com/160743502/abd0e13fb4',
             'only_matching': True,
         },
         {
-            # similar, but all numeric: ID must be 581039021, not 9603038895
-            # issue #29690
-            'url': 'https://vimeo.com/581039021/9603038895',
-            'info_dict': {
-                'id': '581039021',
-                # these have to be provided but we don't care
-                'ext': 'mp4',
-                'timestamp': 1627621014,
-                'title': 're:.+',
-                'uploader_id': 're:.+',
-                'uploader': 're:.+',
-                'upload_date': r're:\d+',
-            },
-            'params': {
-                'skip_download': True,
-            },
+            # requires passing unlisted_hash(a52724358e) to load_download_config request
+            'url': 'https://vimeo.com/392479337/a52724358e',
+            'only_matching': True,
         }
         # https://gettingthingsdone.com/workflowmap/
         # vimeo embed with check-password page protected by Referer header
@@ -584,6 +554,9 @@ class VimeoIE(VimeoBaseInfoExtractor):
             r'<embed[^>]+?src=(["\'])(?P<url>(?:https?:)?//(?:www\.)?vimeo\.com/moogaloop\.swf.+?)\1',
             # Look more for non-standard embedded Vimeo player
             r'<video[^>]+src=(["\'])(?P<url>(?:https?:)?//(?:www\.)?vimeo\.com/[0-9]+)\1',
+            # Embedded event media
+            # https://vimeo.zendesk.com/hc/en-us/articles/360055104711-Creating-and-embedding-live-and-live-to-VOD-events
+            r'<iframe[^>]+?src\s*=\s*(["\'])(?P<url>(?:https?:)?//(?:www\.)?vimeo\.com/event/[^/#?]+?/embed/)\1',
         )
         for embed_re in PLAIN_EMBED_RE:
             for mobj in re.finditer(embed_re, webpage):
@@ -716,18 +689,13 @@ class VimeoIE(VimeoBaseInfoExtractor):
         channel_id = self._search_regex(
             r'vimeo\.com/channels/([^/]+)', url, 'channel id', default=None)
         if channel_id:
-            # look for data-config-url=, but it may not be present
-            config_url = self._html_search_regex(
-                r'\bdata-config-url\s*=\s*("|\')(?P<config_url>[^"\']+)\1',
-                webpage, 'config URL', group='config_url', default=None)
+            config_url = self._extract_config_url(webpage, 'config URL')
             video_description = clean_html(get_element_by_class('description', webpage))
             info_dict.update({
                 'channel_id': channel_id,
                 'channel_url': 'https://vimeo.com/channels/' + channel_id,
             })
         else:
-            config_url = None
-        if not config_url:
             page_config = self._parse_json(self._search_regex(
                 r'vimeo\.(?:clip|vod_title)_page_config\s*=\s*({.+?});',
                 webpage, 'page config', default='{}'), video_id, fatal=False)
@@ -737,9 +705,8 @@ class VimeoIE(VimeoBaseInfoExtractor):
             cc_license = page_config.get('cc_license')
             clip = page_config.get('clip') or {}
             timestamp = clip.get('uploaded_on')
-            if not video_description:
-                video_description = clean_html(
-                    clip.get('description') or page_config.get('description_html_escaped'))
+            video_description = clean_html(
+                clip.get('description') or page_config.get('description_html_escaped'))
         config = self._download_json(config_url, video_id)
         video = config.get('video') or {}
         vod = video.get('vod') or {}
@@ -1198,3 +1165,27 @@ class VHXEmbedIE(VimeoBaseInfoExtractor):
         info['id'] = video_id
         self._vimeo_sort_formats(info['formats'])
         return info
+
+
+class VimeoEventIE(VimeoBaseInfoExtractor):
+    IE_NAME = 'vimeo:event'
+    _VALID_URL = r'https?://(?:www\.)?vimeo\.com/event/(?P<id>[^/?#&]+\d)'
+    _TESTS = [
+        {
+            'url': 'https://vimeo.com/event/1023598/embed/ff6cf5dd25',
+            'info_dict': {
+                'id': '555011351',
+                'title': 'Quantitative Experimental Approaches in Microbial Evolution and Ecology',
+                'ext': 'mp4',
+            },
+        },
+    ]
+
+    def _real_extract(self, url):
+        video_id = self._match_id(url)
+
+        webpage = self._download_webpage(url, video_id)
+        config_url = self._extract_config_url(webpage, 'player URL')
+        if config_url:
+            config_url = base_url(config_url)
+            return self.url_result(config_url, ie='Vimeo', video_id=video_id)
