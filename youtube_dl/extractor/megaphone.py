@@ -18,6 +18,7 @@ from ..compat import (
     compat_etree_Element,
     compat_etree_fromstring,
     compat_str,
+    compat_xpath,
 )
 
 
@@ -30,7 +31,7 @@ class MegaphoneIE(InfoExtractor):
     _JSON_URL_TEMPL = _PLAYER_URL_TEMPL % 'playlist/episode/%s'
     _TESTS = [{
         'url': 'https://player.megaphone.fm/GLT9749789991',
-        'md5': '8f5e8d44ed3ff631be36503a909b586a',
+        'md5': '4816a0de523eb3e972dc0dda2c191f96',
         'info_dict': {
             'id': 'GLT9749789991',
             'ext': 'mp3',
@@ -118,7 +119,7 @@ class MegaphoneEpisodeIE(MegaphoneIE):
     _JSON_URL_TEMPL = MegaphoneIE._PLAYER_URL_TEMPL % 'playlist/episode/%s'
     _TESTS = [{
         'url': 'https://playlist.megaphone.fm/?e=PAN7405681599',
-        'md5': '5a15cd2b85c7b7226dc3656e64a7ab1b',
+        'md5': '7fa866c3af93caac7e13a579c183f6ab',
         'info_dict': {
             'id': 'PAN7405681599',
             'ext': 'mp3',
@@ -128,7 +129,7 @@ class MegaphoneEpisodeIE(MegaphoneIE):
             'uploader': 'Cobras & Fire: Comedy / Rock Talk Show',
             'upload_date': '20210810',
             'timestamp': 1628578800,
-            'description': 'md5:07bacf2d1ecbd241142085afa5229166',
+            'description': 'md5:8f5623a8b22d3be4420c4570d0e36b69',
         },
     }]
 
@@ -147,7 +148,7 @@ class MegaphonePlaylistIE(MegaphoneEpisodeIE):
         'playlist_mincount': 6,
     }, {
         'url': 'https://playlist.megaphone.fm/?p=DEM6640968282',
-        'md5': 'bc05360af1c77bf38855b645ec66f8ce',
+        'md5': '71fbb6616c75aa2cc972e978683dffd4',
         'info_dict': {
             'id': 'DEM6640968282',
             'ext': 'mp3',
@@ -157,7 +158,7 @@ class MegaphonePlaylistIE(MegaphoneEpisodeIE):
             'uploader': 'Lightbulb Productions',
             'upload_date': '20200602',
             'timestamp': 1591070400,
-            'description': 'md5:93325bf5d784f794362a290ab67dff38',
+            'description': 'md5:a06a5a078c0d98bb023626615fb1432d',
         },
         'params': {
             'noplaylist': True,
@@ -188,7 +189,7 @@ class MegaphoneChannelIE(MegaphoneIE):
         'playlist_mincount': 98,
     }, {
         'url': 'https://cms.megaphone.fm/channel/ADL3707263633?selected=ADL9449136081',
-        'md5': 'cf76040d719e4764111d87fc7e23a083',
+        'md5': '42901d1112c059a8de374046e0b1ed25',
         'info_dict': {
             'id': 'ADL9449136081',
             'title': '02.23 - Nolumus Leges Angliae Mutari',
@@ -203,7 +204,7 @@ class MegaphoneChannelIE(MegaphoneIE):
         },
     }, {
         'url': 'https://cms.megaphone.fm/channel/ADL3707263633',
-        'md5': '8664ff32dfa1b9cc47d027860d60b4ad',
+        'md5': '81156c760235d45a9133a9ea9ccbb7d0',
         'info_dict': {
             'id': 'ADL9716153485',
             'title': '02.24 - Give Unto Caesar His Due',
@@ -256,20 +257,21 @@ class MegaphoneChannelIE(MegaphoneIE):
                     # Although the page itself isn't well-formed as XML, the
                     # <div class="public-ep-list>...</div> HTML element is (apparently)
                     # So for "easy" extraction, make it into a compat_etree_Element
-                    ep_list = '<?xml version="1.0"?><eplist>%s</eplist>' % ep_list
+                    ep_list = '<?xml version="1.0" encoding="UTF-8"?><eplist>%s</eplist>' % ep_list
+                    ep_list = ep_list.encode('utf-8')
                     ep_list = try_get(ep_list, compat_etree_fromstring, compat_etree_Element)
             if ep_list is not None:
                 # Use the subset XPath syntax to extract the additional data (counted from 0)
-                ep_info = ep_list.find("div[@id='%d']" % ep_num)
+                ep_info = ep_list.find(compat_xpath("div[@id='%d']" % ep_num))
                 if ep_info is not None:
                     if not ep_title:
-                        title = ep_info.find(".//div[@class='ep-title']")
+                        title = ep_info.find(compat_xpath(".//div[@class='ep-title']"))
                         if title:
                             ep_title = str_or_none(title.text)
-                    description = ep_info.find(".//div[@class='ep-summary']")
+                    description = ep_info.find(compat_xpath(".//div[@class='ep-summary']"))
                     if description is not None:
                         entry['description'] = str_or_none(description.text)
-                    duration = ep_info.find(".//div[@class='ep-duration']")
+                    duration = ep_info.find(compat_xpath(".//div[@class='ep-duration']"))
                     if duration is not None:
                         entry['duration'] = parse_duration(duration.text)
             if not ep_title:
