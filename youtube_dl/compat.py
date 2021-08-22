@@ -2700,16 +2700,15 @@ else:
     # Otherwise it will fail if any non-ASCII characters present (see #3854 #3217 #2918)
 
     def compat_getenv(key, default=None):
-        from .utils import get_filesystem_encoding
         env = os.getenv(key, default)
         if env:
-            env = env.decode(get_filesystem_encoding())
+            env = env.decode('unicode_escape')
         return env
 
     def compat_setenv(key, value, env=os.environ):
         def encode(v):
             from .utils import get_filesystem_encoding
-            return v.encode(get_filesystem_encoding()) if isinstance(v, compat_str) else v
+            return v.encode(get_filesystem_encoding(), 'backslashreplace') if isinstance(v, compat_str) else v
         env[encode(key)] = encode(value)
 
     # HACK: The default implementations of os.path.expanduser from cpython do not decode

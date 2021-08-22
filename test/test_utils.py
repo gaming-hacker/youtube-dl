@@ -479,8 +479,8 @@ class TestUtil(unittest.TestCase):
     def test_shell_quote(self):
         args = ['ffmpeg', '-i', encodeFilename('ñ€ß\'.mp4')]
         self.assertEqual(
-            shell_quote(args),
-            """ffmpeg -i 'ñ€ß'"'"'.mp4'""" if compat_os_name != 'nt' else '''ffmpeg -i "ñ€ß'.mp4"''')
+            shell_quote(args).decode('unicode_escape'),
+            """ffmpeg -i 'ñ€ß'"'"'.mp4'""" if not(compat_os_name in ('nt', 'ce')) else '''ffmpeg -i "ñ€ß'.mp4"''')
 
     def test_float_or_none(self):
         self.assertEqual(float_or_none('42.42'), 42.42)
@@ -1085,7 +1085,7 @@ class TestUtil(unittest.TestCase):
     def test_args_to_str(self):
         self.assertEqual(
             args_to_str(['foo', 'ba/r', '-baz', '2 be', '']),
-            'foo ba/r -baz \'2 be\' \'\'' if compat_os_name != 'nt' else 'foo ba/r -baz "2 be" ""'
+            'foo ba/r -baz \'2 be\' \'\'' if not(compat_os_name in ('nt', 'ce')) else 'foo ba/r -baz "2 be" ""'
         )
 
     def test_parse_filesize(self):

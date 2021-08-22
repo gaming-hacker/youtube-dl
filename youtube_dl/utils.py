@@ -2245,7 +2245,8 @@ def encodeFilename(s, for_subprocess=False):
     if sys.platform.startswith('java'):
         return s
 
-    return s.encode(get_subprocess_encoding(), 'ignore')
+    # If encoding is (eg) 'ascii', use escape sequences (allows round-trip test)
+    return s.encode(get_subprocess_encoding(), 'backslashreplace')
 
 
 def decodeFilename(b, for_subprocess=False):
@@ -4610,7 +4611,7 @@ def dfxp2srt(dfxp_data):
             continue
         default_style.update(style)
 
-    for para, index in zip(paras, itertools.count(1)):
+    for index, para in enumerate(paras, 1):
         begin_time = parse_dfxp_time_expr(para.attrib.get('begin'))
         end_time = parse_dfxp_time_expr(para.attrib.get('end'))
         dur = parse_dfxp_time_expr(para.attrib.get('dur'))
