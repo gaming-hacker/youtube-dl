@@ -139,7 +139,7 @@ class NBCIE(ThePlatformIE):
         video_id = try_get(video_data, lambda x: x['mpxGuid'])
         if not video_id:
             raise ExtractorError('Empty or no metadata from NBC GraphQL API', expected=True)
-        tp_path = ('NnzsPC/media/guid/%s/%s' % 
+        tp_path = ('NnzsPC/media/guid/%s/%s' %
                    (video_data.get('mpxAccountId', '2410887629'), video_id))
         tpm = self._download_theplatform_metadata(tp_path, video_id)
         title = tpm.get('title') or video_data['secondaryTitle']
@@ -392,7 +392,7 @@ class NBCNewsIE(ThePlatformIE):
             'only_matching': True,
         }, {
             'url': 'https://www.nbcnews.com/news/amp/ncna1276021',
-            'md5': '6d236bf4f3dddc226633ce6e2c3f814d',
+            'md5': '948bf2f3b0a8b0ea595c424e0850e7a2',
             'info_dict': {
                 'id': 'ncna1276021',
                 'ext': 'mp4',
@@ -402,7 +402,8 @@ class NBCNewsIE(ThePlatformIE):
                 'timestamp': 1628152660,
                 'upload_date': '20210805',
             },
-    }]
+        },
+    ]
 
     def _old_real_extract(self, url, video_id, webpage=None):
         if not webpage:
@@ -412,7 +413,7 @@ class NBCNewsIE(ThePlatformIE):
             r'<script[^>]+id="__NEXT_DATA__"[^>]*>({.+?})</script>',
             webpage, 'bootstrap json', fatal=False)
         if data:
-             data = self._parse_json(data, video_id, fatal=False)
+            data = self._parse_json(data, video_id, fatal=False)
         if data:
             data = try_get(data, lambda x: x['props']['initialState'], dict)
         if not data:
@@ -476,11 +477,12 @@ class NBCNewsIE(ThePlatformIE):
         webpage = self._download_webpage(url, video_id)
 
         entries = []
-        for mobj in re.finditer(r'<amp-iframe\s[^>]+?\bsrc\s*=\s*(\'|")(?P<link>[^>]+?)\1(\s[^>]*)?>',
-                    webpage):
+        for mobj in re.finditer(
+                r'<amp-iframe\s[^>]+?\bsrc\s*=\s*(\'|")(?P<link>[^>]+?)\1(\s[^>]*)?>',
+                webpage):
             link_url = mobj.group('link')
             if link_url:
-                if not '/embedded-video/' in link_url:
+                if '/embedded-video/' not in link_url:
                     continue
                 entry = self._old_real_extract(link_url, video_id)
             if entry:
@@ -537,94 +539,43 @@ class NBCOlympicsIE(InfoExtractor):
 class NBCOlympicsStreamIE(AdobePassIE):
     IE_NAME = 'nbcolympics:stream'
     _VALID_URL = r'https?://stream\.nbcolympics\.com/(?P<id>[0-9a-z-]+)'
-    _TESTS = [
-        # "Tokenized" .m3u8 source URL
-        {
-            'url': 'https://stream.nbcolympics.com/womens-soccer-group-round-11',
-            'info_dict': {
-                'id': '2019740',
-                'ext': 'mp4',
-                'title': r"re:Women's Group Stage - Netherlands vs\. Brazil [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$",
-            },
-            'params': {
-                # m3u8 download
-                'skip_download': True,
-            },
+    _TEST = {
+        'url': 'http://stream.nbcolympics.com/2018-winter-olympics-nbcsn-evening-feb-8',
+        'info_dict': {
+            'id': '203493',
+            'ext': 'mp4',
+            'title': 're:Curling, Alpine, Luge [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$',
         },
-        # Plain .m3u8 source URL
-        {
-            'url': 'https://stream.nbcolympics.com/gymnastics-event-finals-mens-floor-pommel-horse-womens-vault-bars',
-            'info_dict': {
-                'id': '2021729',
-                'ext': 'mp4',
-                'title': r're:Event Finals: M Floor, W Vault, M Pommel, W Uneven Bars [0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$',
-            },
-            'params': {
-                # m3u8 download
-                'skip_download': True,
-            },
+        'params': {
+            # m3u8 download
+            'skip_download': True,
         },
-    ]
+    }
     _DATA_URL_TEMPLATE = 'http://stream.nbcolympics.com/data/%s_%s.json'
-    _LEAP_URL_TEMPLATE = 'https://api-leap.nbcsports.com/feeds/assets/%s?application=NBCOlympics&platform=%s&format=nbc-player&env=staging'
 
     def _real_extract(self, url):
         display_id = self._match_id(url)
         webpage = self._download_webpage(url, display_id)
         pid = self._search_regex(r'pid\s*=\s*(\d+);', webpage, 'pid')
-
+        resource = self._search_regex(
+            r"resource\s*=\s*'(.+)';", webpage,
+            'resource').replace("' + pid + '", pid)
         event_config = self._download_json(
             self._DATA_URL_TEMPLATE % ('event_config', pid),
-            pid,
-            'Downloading event config',
-        )['eventConfig']
-        resource = event_config.get('resourceId', 'NBCOlympics')
+            pid)['eventConfig']
         title = self._live_title(event_config['eventTitle'])
-
-        leap_config = self._download_json(
-            self._LEAP_URL_TEMPLATE % (pid, 'desktop'),
-            pid,
-            'Downloading leap config',
-        )
-        source_url = leap_config['videoSources'][0]['cdnSources']['primary'][0]['sourceUrl']
-
-        ap_resource = self._get_mvpd_resource(
-            resource,
-            re.sub(r'[^\w\d ]+', '', event_config['eventTitle']),
-            pid,
-            event_config.get('ratingId', 'NO VALUE'),
-        )
+        source_url = self._download_json(
+            self._DATA_URL_TEMPLATE % ('live_sources', pid),
+            pid)['videoSources'][0]['sourceUrl']
         media_token = self._extract_mvpd_auth(
-            url, pid, event_config.get('requestorId', 'NBCOlympics'), ap_resource)
-
-        if event_config.get('cdnToken') is True:
-            source_url = self._download_json(
-                'https://tokens.playmakerservices.com/',
-                pid,
-                'Retrieving tokenized URL',
-                data=json.dumps({
-                    'application': 'NBCSports',
-                    'authentication-type': 'adobe-pass',
-                    'cdn': 'akamai',
-                    # Indicates that the player communicates its token not via the path
-                    # but via a cookie? NBC's player specifies `'false'` but field just
-                    # doesn't seem to have an effect.
-                    # 'inPath': 'false',
-                    'pid': pid,
-                    'platform': 'desktop',
-                    'requestorId': 'NBCOlympics',
-                    'resourceId': base64.b64encode(ap_resource.encode()).decode(),
-                    'token': base64.b64encode(media_token.encode()).decode(),
-                    'url': source_url,
-                    'version': 'v1',
-                }).encode(),
-            )['akamai'][0]['tokenizedUrl']
-
-        formats = self._extract_m3u8_formats(source_url, pid, 'mp4')
-        for f in formats:
-            f['_seekable'] = False
-            f['_http_seekable'] = False
-            f['_icy'] = False
+            url, pid, event_config.get('requestorId', 'NBCOlympics'), resource)
+        formats = self._extract_m3u8_formats(self._download_webpage(
+            'http://sp.auth.adobe.com/tvs/v1/sign', pid, query={
+                'cdn': 'akamai',
+                'mediaToken': base64.b64encode(media_token.encode()),
+                'resource': base64.b64encode(resource.encode()),
+                'url': source_url,
+            }), pid, 'mp4')
         self._sort_formats(formats)
 
         return {
