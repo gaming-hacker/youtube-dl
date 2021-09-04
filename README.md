@@ -336,7 +336,7 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     --external-downloader COMMAND             Use the specified external
                                               downloader. Currently supports ari
                                               a2c,avconv,axel,curl,ffmpeg,httpie
-                                              ,wget
+                                              ,streamlink,wget
     --external-downloader-args ARGS           Give these arguments to the
                                               external downloader
 
