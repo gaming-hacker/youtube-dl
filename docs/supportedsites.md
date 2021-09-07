@@ -869,6 +869,7 @@
  - **Slideshare**
  - **SlidesLive**
  - **Slutload**
+ - **Snapchat**
  - **Snotr**
  - **Sohu**
  - **SonyLIV**
