@@ -357,6 +357,9 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     --restrict-filenames                      Restrict filenames to only ASCII
                                               characters, and avoid "&" and
                                               spaces in filenames
+    --autonumber-reset                        Reset %(autonumber)s counter to
+                                              %(autonumber_start)s before each
+                                              playlist
     -w, --no-overwrites                       Do not overwrite files
     -c, --continue                            Force resume of partially
                                               downloaded files. By default,
@@ -602,7 +605,7 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                               "(?P<artist>.+?) - (?P<title>.+)"
     --xattrs                                  Write metadata to the video file's
                                               xattrs (using dublin core and xdg
-                                              standards)
+                                              standards, or macOS Spotlight)
     --fixup POLICY                            Automatically correct known faults
                                               of the file. One of never (do
                                               nothing), warn (only emit a

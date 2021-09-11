@@ -167,6 +167,7 @@
  - **CDA**
  - **CeskaTelevize**
  - **CeskaTelevizePorady**
+ - **CGTN**
  - **channel9**: Channel 9
  - **CharlieRose**
  - **Chaturbate**
@@ -846,6 +847,7 @@
  - **SCTECourse**
  - **Seeker**
  - **SenateISVP**
+ - **SendFox**
  - **SendtoNews**
  - **Servus**
  - **Sexu**
@@ -873,6 +875,7 @@
  - **Snapchat**
  - **Snotr**
  - **Sohu**
+ - **SohuPlaylist**
  - **SonyLIV**
  - **soundcloud**
  - **soundcloud:playlist**
@@ -993,6 +996,7 @@
  - **TruNews**
  - **TruTV**
  - **Tube8**
+ - **TubeTuGraz**: tube.tugraz.at
  - **TubiTv**
  - **Tumblr**
  - **tunein:clip**
@@ -1130,6 +1134,7 @@
  - **vlive**
  - **vlive:channel**
  - **vlive:post**
+ - **Vocaroo**
  - **Vodlocker**
  - **VODPl**
  - **VODPlatform**
@@ -1236,6 +1241,7 @@
  - **youtube:watchlater**: Youtube watch later list, ":ytwatchlater" for short (requires authentication)
  - **YoutubeYtBe**
  - **YoutubeYtUser**
+ - **Youvi**
  - **Zapiks**
  - **Zattoo**
  - **ZattooLive**
