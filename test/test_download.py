@@ -23,6 +23,7 @@ import hashlib
 import io
 import json
 import socket
+import re
 
 import youtube_dl.YoutubeDL
 from youtube_dl.compat import (
@@ -34,9 +35,11 @@ from youtube_dl.utils import (
     DownloadError,
     ExtractorError,
     format_bytes,
+    std_headers,
     UnavailableVideoError,
 )
 from youtube_dl.extractor import get_info_extractor
+from youtube_dl.downloader.common import FileDownloader
 
 RETRIES = 3
 
@@ -56,9 +59,10 @@ class YoutubeDL(youtube_dl.YoutubeDL):
         return super(YoutubeDL, self).process_info(info_dict)
 
 
-def _file_md5(fn):
+def _file_md5(fn, length=None):
     with open(fn, 'rb') as f:
-        return hashlib.md5(f.read()).hexdigest()
+        return hashlib.md5(
+            f.read(length) if length is not None else f.read()).hexdigest()
 
 
 defs = gettestcases()
@@ -82,6 +86,13 @@ class TestDownload(unittest.TestCase):
         return '%s (%s)%s:' % (self._testMethodName,
                                strclass(self.__class__),
                                ' [%s]' % add_ie if add_ie else '')
+
+    @classmethod
+    def addTest(cls, test_method, test_method_name, add_ie):
+        test_method.__name__ = str(test_method_name)
+        test_method.add_ie = add_ie
+        setattr(TestDownload, test_method.__name__, test_method)
+        del test_method
 
     def setUp(self):
         self.defs = defs
@@ -122,6 +133,17 @@ def generator(test_case, tname):
         if is_playlist and 'playlist' not in test_case:
             params.setdefault('extract_flat', 'in_playlist')
             params.setdefault('skip_download', True)
+
+        if 'user_agent' in params:
+            std_headers['User-Agent'] = params['user_agent']
+
+        if 'referer' in params:
+            std_headers['Referer'] = params['referer']
+
+        for h in params.get('headers', []):
+            h = h.split(':', 1)
+            if len(h) > 1:
+                std_headers[h[0]] = h[1]
 
         ydl = YoutubeDL(params, auto_init=False)
         ydl.add_default_info_extractors()
@@ -224,7 +246,7 @@ def generator(test_case, tname):
                             (tc_filename, format_bytes(expected_minsize),
                                 format_bytes(got_fsize)))
                     if 'md5' in tc:
-                        md5_for_file = _file_md5(tc_filename)
+                        md5_for_file = _file_md5(tc_filename) if not params.get('test') else _file_md5(tc_filename, FileDownloader._TEST_FILE_SIZE)
                         self.assertEqual(tc['md5'], md5_for_file)
                 # Finally, check test cases' data again but this time against
                 # extracted data from info JSON file written during processing
@@ -254,12 +276,45 @@ for n, test_case in enumerate(defs):
         tname = 'test_%s_%d' % (test_case['name'], i)
         i += 1
     test_method = generator(test_case, tname)
-    test_method.__name__ = str(tname)
-    ie_list = test_case.get('add_ie')
-    test_method.add_ie = ie_list and ','.join(ie_list)
-    setattr(TestDownload, test_method.__name__, test_method)
-    del test_method
+    ie_list = ','.join(test_case.get('add_ie', []))
+    TestDownload.addTest(test_method, tname, ie_list)
 
+# Py2 compat (should be in compat.py?)
+try:
+    from itertools import (ifilter as filter, imap as map)
+except ImportError:
+    pass
+
+
+def tests_for_ie(ie_key):
+    return filter(
+        lambda a: callable(getattr(TestDownload, a, None)),
+        filter(lambda a: re.match(r'test_%s(?:_\d+)?$' % ie_key, a),
+               dir(TestDownload)))
+
+
+def gen_test_suite(ie_key):
+    def test_all(self):
+        print(self)
+        suite = unittest.TestSuite(
+            map(TestDownload, tests_for_ie(ie_key)))
+        result = self.defaultTestResult()
+        suite.run(result)
+        return result
+
+    return test_all
+
+
+for ie_key in set(
+    map(lambda x: x[0],
+        filter(
+            lambda x: callable(x[1]),
+            map(lambda a: (a[5:], getattr(TestDownload, a, None)),
+                filter(lambda t:
+                       re.match(r'test_.+(?<!(?:_all|.._\d|._\d\d|_\d\d\d))$', t),
+                       dir(TestDownload)))))):
+    test_all = gen_test_suite(ie_key)
+    TestDownload.addTest(test_all, 'test_%s_all' % ie_key, 'Test all: %s' % ie_key)
 
 if __name__ == '__main__':
     unittest.main()
