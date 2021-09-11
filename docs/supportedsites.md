@@ -405,6 +405,7 @@
  - **instagram:user**: Instagram user profile
  - **Internazionale**
  - **InternetVideoArchive**
+ - **invidious**: Invidious YT front-end videos, playlists, channels, searches
  - **IPrima**
  - **iqiyi**: 爱奇艺
  - **Ir90Tv**
