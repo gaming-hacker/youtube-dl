@@ -1638,6 +1638,7 @@ from .youtube import (
     YoutubeYtBeIE,
     YoutubeYtUserIE,
     YoutubeWatchLaterIE,
+    InvidiousIE,
 )
 from .zapiks import ZapiksIE
 from .zattoo import (
