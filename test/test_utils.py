@@ -63,6 +63,7 @@ from youtube_dl.utils import (
     pkcs1pad,
     read_batch_urls,
     sanitize_filename,
+    sanitize_open,
     sanitize_path,
     sanitize_url,
     expand_path,
@@ -230,6 +231,21 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(sanitize_path('../../abc'), '..\\..\\abc')
         self.assertEqual(sanitize_path('./abc'), 'abc')
         self.assertEqual(sanitize_path('./../abc'), '..\\abc')
+
+    def test_sanitize_open(self):
+        long_name = " I'm a lumberjack ".join(['I sleep all night and I work all day %d' % n for n in range(50)])
+        if sys.platform == 'win32':
+            result = sanitize_open('.\\' + long_name + '.test', open_mode='w')
+            result[0].close()
+            self.assertEqual(
+                result[1],
+                "I sleep all night and I work all day 0 I'm a lumberjack I sleep all night and I work all day 1 I'm a lumberjack I sleep all night and I work all day 2 I'm a lumberjack[...].test")
+        else:
+            result = sanitize_open('./' + long_name + '.test', open_mode='w')
+            result[0].close()
+            self.assertEqual(
+                result[1],
+                "./I sleep all night and I work all day 0 I'm a lumberjack I sleep all night and I work all day 1 I'm a lumberjack I sleep all night and I work all day 2 I'm a lumberjack[...].test")
 
     def test_sanitize_url(self):
         self.assertEqual(sanitize_url('//foo.bar'), 'http://foo.bar')
