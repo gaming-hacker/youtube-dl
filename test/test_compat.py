@@ -19,6 +19,7 @@ from youtube_dl.compat import (
     compat_shlex_split,
     compat_str,
     compat_struct_unpack,
+    compat_textwrap_shorten,
     compat_urllib_parse_unquote,
     compat_urllib_parse_unquote_plus,
     compat_urllib_parse_urlencode,
@@ -124,6 +125,9 @@ class TestCompat(unittest.TestCase):
 
     def test_struct_unpack(self):
         self.assertEqual(compat_struct_unpack('!B', b'\x00'), (0,))
+
+    def test_compat_textwrap_shorten(self):
+        self.assertEqual(compat_textwrap_shorten('Hello  world!', width=11), 'Hello [...]')
 
 
 if __name__ == '__main__':

@@ -3015,6 +3015,29 @@ else:
     def compat_ctypes_WINFUNCTYPE(*args, **kwargs):
         return ctypes.WINFUNCTYPE(*args, **kwargs)
 
+# Compat version of textwrap.shorten(), not in Py2 textwrap
+# Extractors can use this to précis a long metadata field, eg
+# to make a title from a description
+try:
+    from textwrap import shorten as compat_textwrap_shorten
+except ImportError:  # Python 2
+    def compat_textwrap_shorten(
+            text, width, fix_sentence_endings=False, break_long_words=True,
+            break_on_hyphens=True, placeholder=' [...]'):
+        import textwrap
+        try_text = textwrap.wrap(
+            text, width,
+            fix_sentence_endings=fix_sentence_endings,
+            break_long_words=break_long_words,
+            break_on_hyphens=break_on_hyphens)
+        if len(try_text) == 1:
+            return try_text[0]
+        return textwrap.wrap(
+            text, width - len(placeholder),
+            fix_sentence_endings=fix_sentence_endings,
+            break_long_words=break_long_words,
+            break_on_hyphens=break_on_hyphens)[0] + placeholder
+
 
 try:  # Python >= 3.3
     compat_BrokenPipeError = BrokenPipeError
@@ -3066,6 +3089,7 @@ __all__ = [
     'compat_struct_pack',
     'compat_struct_unpack',
     'compat_subprocess_get_DEVNULL',
+    'compat_textwrap_shorten',
     'compat_tokenize_tokenize',
     'compat_urllib_error',
     'compat_urllib_parse',
