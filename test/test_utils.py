@@ -120,6 +120,16 @@ from youtube_dl.compat import (
 
 
 class TestUtil(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tearDown()
+
+    @classmethod
+    def tearDown(cls):
+        for tf in os.listdir('.'):
+            if os.path.splitext(tf)[1] == '.test':
+                os.remove(tf)
+
     def test_timeconvert(self):
         self.assertTrue(timeconvert('') is None)
         self.assertTrue(timeconvert('bougrg') is None)
