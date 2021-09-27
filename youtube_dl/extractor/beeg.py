@@ -158,7 +158,7 @@ class BeegIE(InfoExtractor):
             if formats:
                 self._sort_formats(formats)
                 title = video_data.get('sf_name') or 'Beeg video %s' % video_id
-                tags = try_get(video, lambda v: [tag['tg_slug'] for tag in v['tags']])
+                tags = try_get(video_data, lambda v: [tag['tg_slug'] for tag in v['tags'] if tag.get('tg_slug')])
                 result = {
                     'id': video_id,
                     'title': video_data.get('sf_name') or 'Beeg video %s' % video_id,
