@@ -82,6 +82,7 @@
  - **awaan:season**
  - **awaan:video**
  - **AZMedien**: AZ Medien videos
+ - **BaddieHub**
  - **BaiduVideo**: 百度视频
  - **bandaichannel**
  - **Bandcamp**
@@ -748,6 +749,7 @@
  - **Pornotube**
  - **PornoVoisines**
  - **PornoXO**
+ - **PornTrex**
  - **PornTube**
  - **PressTV**
  - **prosiebensat1**: ProSiebenSat.1 Digital
