@@ -27,7 +27,23 @@ class RedTubeIE(InfoExtractor):
             'duration': 596,
             'view_count': int,
             'age_limit': 18,
-        }
+        },
+        'skip': 'private video',
+    }, {
+        'url': 'https://www.redtube.com/38864951',
+        'md5': '4fba70cbca3aefd25767ab4b523c9878',
+        'info_dict': {
+            'id': '38864951',
+            'ext': 'mp4',
+            'title': 'Public Sex on the Balcony in Freezing Paris! Amateur Couple LeoLulu',
+            'description': 'Watch video Public Sex on the Balcony in Freezing Paris! Amateur Couple LeoLulu on Redtube, home of free Blowjob porn videos and Blonde sex movies online. Video length: (10:46) - Uploaded by leolulu - Verified User - Starring Pornstar: Leolulu',
+            'upload_date': '20210111',
+            'timestamp': 1610343109,
+            'duration': 646,
+            'view_count': int,
+            'age_limit': 18,
+            'thumbnail': r're:https://\wi-ph\.rdtcdn\.com/videos/.+/.+\.jpg',
+        },
     }, {
         'url': 'http://embed.redtube.com/?bgcolor=000000&id=1443286',
         'only_matching': True,
@@ -84,23 +100,33 @@ class RedTubeIE(InfoExtractor):
                 r'mediaDefinition["\']?\s*:\s*(\[.+?}\s*\])', webpage,
                 'media definitions', default='{}'),
             video_id, fatal=False)
-        if medias and isinstance(medias, list):
-            for media in medias:
+        for media in medias if isinstance(medias, list) else []:
+            format_url = url_or_none(media.get('videoUrl'))
+            if not format_url:
+                continue
+            format_id = media.get('format')
+            quality = media.get('quality')
+            if format_id == 'hls' or (format_id == 'mp4' and not quality):
+                more_media = self._download_json(format_url, video_id, fatal=False)
+            else:
+                more_media = [media]
+            for media in more_media if isinstance(more_media, list) else []:
                 format_url = url_or_none(media.get('videoUrl'))
                 if not format_url:
                     continue
-                if media.get('format') == 'hls' or determine_ext(format_url) == 'm3u8':
+                format_id = media.get('format')
+                if format_id == 'hls' or determine_ext(format_url) == 'm3u8':
                     formats.extend(self._extract_m3u8_formats(
                         format_url, video_id, 'mp4',
-                        entry_protocol='m3u8_native', m3u8_id='hls',
+                        entry_protocol='m3u8_native', m3u8_id=format_id or 'hls',
                         fatal=False))
-                    continue
-                format_id = media.get('quality')
-                formats.append({
-                    'url': format_url,
-                    'format_id': format_id,
-                    'height': int_or_none(format_id),
-                })
+                else:
+                    format_id = media.get('quality')
+                    formats.append({
+                        'url': format_url,
+                        'format_id': format_id,
+                        'height': int_or_none(format_id),
+                    })
         if not formats:
             video_url = self._html_search_regex(
                 r'<source src="(.+?)" type="video/mp4">', webpage, 'video URL')
