@@ -1176,6 +1176,8 @@ class VimeoEventIE(VimeoBaseInfoExtractor):
             'info_dict': {
                 'id': '555011351',
                 'title': 'Quantitative Experimental Approaches in Microbial Evolution and Ecology',
+                'uploader_id': 'user75302951',
+                'uploader': 'Projection',
                 'ext': 'mp4',
             },
         },
