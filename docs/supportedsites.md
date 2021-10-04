@@ -479,6 +479,7 @@
  - **linkedin:learning**
  - **linkedin:learning:course**
  - **LinuxAcademy**
+ - **Listennow**
  - **LiTV**
  - **LiveJournal**
  - **livestream**
@@ -774,6 +775,7 @@
  - **radiocanada:audiovideo**
  - **radiofrance**
  - **RadioJavan**
+ - **RadioplayPodcast**
  - **Rai**
  - **RaiPlay**
  - **RaiPlayLive**
