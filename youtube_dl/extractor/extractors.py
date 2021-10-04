@@ -619,6 +619,7 @@ from .linkedin import (
     LinkedInLearningCourseIE,
 )
 from .linuxacademy import LinuxAcademyIE
+from .listennow import ListennowIE
 from .litv import LiTVIE
 from .livejournal import LiveJournalIE
 from .livestream import (
@@ -997,6 +998,7 @@ from .radiode import RadioDeIE
 from .radiojavan import RadioJavanIE
 from .radiobremen import RadioBremenIE
 from .radiofrance import RadioFranceIE
+from .radioplay import RadioplayPodcastIE
 from .rai import (
     RaiPlayIE,
     RaiPlayLiveIE,
