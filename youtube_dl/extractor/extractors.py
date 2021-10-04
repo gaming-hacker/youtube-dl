@@ -1623,6 +1623,7 @@ from .youku import (
     YoukuIE,
     YoukuShowIE,
 )
+from .youmaker import YouMakerIE
 from .younow import (
     YouNowLiveIE,
     YouNowChannelIE,
