@@ -15,6 +15,7 @@ from ..utils import (
     orderedSet,
     remove_end,
     strip_or_none,
+    unified_timestamp,
     ExtractorError,
 )
 
@@ -91,12 +92,13 @@ class CBCIE(InfoExtractor):
         }],
         'skip': 'Geo-restricted to Canada',
     }, {
-        # multiple CBC.APP.Caffeine.initInstance(...)
+        # multiple in React ld+json, formerly CBC.APP.Caffeine.initInstance(...)
         'url': 'http://www.cbc.ca/news/canada/calgary/dog-indoor-exercise-winter-1.3928238',
         'info_dict': {
             'title': 'Keep Rover active during the deep freeze with doggie pushups and other fun indoor tasks',
             'id': 'dog-indoor-exercise-winter-1.3928238',
             'description': 'md5:c18552e41726ee95bd75210d1ca9194c',
+            'timestamp': 1484016300,
         },
         'playlist_mincount': 6,
     }]
@@ -121,9 +123,52 @@ class CBCIE(InfoExtractor):
                     clip_id)['entries'][0]['id'].split('/')[-1]
         return self.url_result('cbcplayer:%s' % media_id, 'CBCPlayer', media_id)
 
+    def _extract_ld_json(self, ldjson, display_id):
+        """Extract video playlist from JSON {plItem: itemVal, ..., video: [...], ...}"""
+        playlist_info = self._parse_json(ldjson, display_id, fatal=False)
+        videos = try_get(playlist_info, lambda x: x['video'], list)
+        if not videos:
+            return None
+        entries = []
+        for video in videos:
+            vtype = try_get(video, lambda x: x['@type'], compat_str)
+            if vtype != 'VideoObject':
+                continue
+            clip_id = video.get('identifier')
+            if clip_id is None:
+                continue
+            title = video.get('name')
+            entries.append({
+                '_type': 'url_transparent',
+                'url': 'cbcplayer:%s' % clip_id,
+                'title': title,
+                'description': video.get('description'),
+                'timestamp': unified_timestamp(video.get('dateModified')),
+                'thumbnail': video.get('thumbnailUrl')
+            })
+        result = self.playlist_result(
+            entries,
+            playlist_id=display_id,
+            playlist_title=playlist_info.get('name'),
+            playlist_description=playlist_info.get('description'))
+        result['timestamp'] = unified_timestamp(playlist_info.get('datePublished'))
+        result['release_timestamp'] = unified_timestamp(playlist_info.get('dateModified'))
+        result['thumbnail'] = playlist_info.get('thumbnailUrl')
+        return result
+
     def _real_extract(self, url):
         display_id = self._match_id(url)
         webpage = self._download_webpage(url, display_id)
+
+        # 2021-09 React-based page with playlist in <script type="application/ld+json"> element
+        ldjson = self._search_regex(
+            r'(?s)<script\s[^>]*?\bdata-react-helmet\s*=[^>]+?\btype\s*=\s*(?P<q>"|\'|\b)application/ld\+json(?P=q)[^>]*>\s*(?P<json_ld>{.+?})\s*</script>',
+            webpage, 'ld+json', default=None, group='json_ld')
+        result = self._extract_ld_json(ldjson, display_id)
+        if result:
+            return result
+
+        # Continue trying older schemes
         title = self._og_search_title(webpage, default=None) or self._html_search_meta(
             'twitter:title', webpage, 'title', default=None) or self._html_search_regex(
                 r'<title>([^<]+)</title>', webpage, 'title')
@@ -206,7 +251,6 @@ class CBCGemIE(InfoExtractor):
     IE_NAME = 'cbc.ca:gem:video'
     _VALID_URL = r'https?://gem\.cbc\.ca/media/(?P<id>[0-9a-z-]+/s\d+[a-z]\d+)'
     _TESTS = [{
-        # geo-restricted to Canada, bypassable
         # This is a normal, public, TV show video
         'url': 'https://gem.cbc.ca/media/schitts-creek/s06e01',
         'md5': '93dbb31c74a8e45b378cf13bd3f6f11e',
@@ -226,9 +270,9 @@ class CBCGemIE(InfoExtractor):
             'episode_id': 'schitts-creek/s06e01',
         },
         'params': {'format': 'bv'},
-        # 'skip': 'Geo-restricted to Canada',
+        # no longer amenable to geo-bypass
+        'skip': 'Geo-restricted to Canada',
     }, {
-        # geo-restricted to Canada, bypassable
         # This video requires an account in the browser, but works fine in yt-dlp
         'url': 'https://gem.cbc.ca/media/schitts-creek/s01e01',
         'md5': '297a9600f554f2258aed01514226a697',
@@ -248,7 +292,8 @@ class CBCGemIE(InfoExtractor):
             'categories': ['comedy'],
         },
         'params': {'format': 'bv'},
-        # 'skip': 'Geo-restricted to Canada',
+        # no longer amenable to geo-bypass
+        'skip': 'Geo-restricted to Canada',
     }]
     _API_BASE = 'https://services.radio-canada.ca/ott/cbc-api/v2/assets/'
 
@@ -258,7 +303,7 @@ class CBCGemIE(InfoExtractor):
 
         last_error = None
         attempt = -1
-        retries = self.get_param('extractor_retries', 15)
+        retries = self._downloader.params.get('extractor_retries', 15)
         while attempt < retries:
             attempt += 1
             if last_error:
@@ -321,7 +366,7 @@ class CBCGemPlaylistIE(InfoExtractor):
     IE_NAME = 'cbc.ca:gem:playlist'
     _VALID_URL = r'https?://gem\.cbc\.ca/media/(?P<id>(?P<show>[0-9a-z-]+)/s(?P<season>\d+))/?(?:[?#]|$)'
     _TESTS = [{
-        # geo-restricted to Canada, bypassable
+        # playlist not geo-restricted to Canada, even if shows are
         # TV show playlist, all public videos
         'url': 'https://gem.cbc.ca/media/schitts-creek/s06',
         'playlist_count': 16,
@@ -330,7 +375,6 @@ class CBCGemPlaylistIE(InfoExtractor):
             'title': 'Season 6',
             'description': 'md5:6a92104a56cbeb5818cc47884d4326a2',
         },
-        # 'skip': 'Geo-restricted to Canada',
     }]
     _API_BASE = 'https://services.radio-canada.ca/ott/cbc-api/v2/shows/'
 
@@ -338,9 +382,9 @@ class CBCGemPlaylistIE(InfoExtractor):
         match = self._match_valid_url(url)
         season_id = match.group('id')
         show = match.group('show')
-        show_info = self._download_json(self._API_BASE + show, season_id)
-        season = int(match.group('season'))
-        season_info = try_get(show_info, lambda x: x['seasons'][season - 1])
+        show_info = self._download_json(self._API_BASE + show, season_id, fatal=False)
+        season = match.group('season')
+        season_info = try_get(show_info, lambda x: x['seasons'][int(season) - 1])
 
         if season_info is None:
             raise ExtractorError('Couldn\'t find season %s of %s' % (season, show))
