@@ -150,10 +150,10 @@
  - **CarambaTVPage**
  - **CartoonNetwork**
  - **cbc.ca**
- - **cbc.ca:olympics**
+ - **cbc.ca:gem:live**
+ - **cbc.ca:gem:playlist**
+ - **cbc.ca:gem:video**
  - **cbc.ca:player**
- - **cbc.ca:watch**
- - **cbc.ca:watch:video**
  - **CBS**
  - **CBSInteractive**
  - **CBSLocal**
