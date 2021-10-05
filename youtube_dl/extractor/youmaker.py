@@ -1,5 +1,9 @@
+# coding: utf-8
+from __future__ import unicode_literals
+
 from .common import InfoExtractor
-from .. import utils
+from ..compat import compat_urllib_parse_urlencode
+from ..utils import parse_iso8601, unified_strdate, ExtractorError
 
 
 class YouMakerIE(InfoExtractor):
@@ -11,51 +15,156 @@ class YouMakerIE(InfoExtractor):
 
     _TESTS = [
         {
-            "url": "https://www.youmaker.com/v/Dnnrq0lw8062",
+            "url": "http://www.youmaker.com/v/71b5d2c5-31b6-43b8-8475-1dcb5e10dfb0",
             "info_dict": {
-                "id": "77c92592-57fa-4bfc-a5da-79e965667001",
+                "id": "71b5d2c5-31b6-43b8-8475-1dcb5e10dfb0",
                 "ext": "mp4",
-                "title": "Althistoriker Dr. David Engels im Interview: „Das ist der echte Untergang des Abendlandes“",
-                "description": "Im Interview mit Epoch Times führt der belgische Althistoriker Dr. David Engels aus, "
-                "wie sich der Zerfall der europäischen Staatengemeinschaft im Zuge der Corona-Krise zugespitzt hat, "
-                "und zeichnet Parallelen zu den letzten Atemzügen der spätrömischen Republik. \n\n"
-                "Der Artikel zu dem Interview folgt in Kürze hier: https://www.epochtimes.de/wissen/"
-                "gesellschaft/das-ist-der-echte-untergang-des-abendlandes-a3613553.html",
-                "duration": 3507,
-                "upload_date": "20211001",
-                "uploader": "Deepochtimes",
-                "timestamp": 1633079621,
-                "channel": "Epoch Times Deutsch",
-                "channel_id": "9a7c740c-74c7-4ebb-86ad-611ba4e71535",
+                "title": "Как сшить шапочку из трикотажа. Плоский шов двойной иглой.",
+                "description": r"re:(?s)^Привет друзья!\n\nВ этом видео я .* представлена www\.iksonmusic\.com$",
+                "thumbnail": r"re:^https?://.*\.(?:jpg|png)$",
+                "duration": 358,
+                "upload_date": "20190614",
+                "uploader": "user_318f21e00e1f8a6b414f20a654d0f4fc7d2053bc",
+                "timestamp": 1560554895,
+                "channel": "Sewing Ideas",
+                "channel_id": "40ca79f7-8b21-477f-adba-7d0f81e5b5fd",
+                "channel_url": r"re:https?://www.youmaker.com/channel/40ca79f7-8b21-477f-adba-7d0f81e5b5fd",
+                "tags": [
+                    "как сшить детскую шапочку из трикотажа",
+                    "как шить двойной иглой трикотаж",
+                ],
+                "categories": ["Life", "How-to & DIY"],
             },
             "params": {
                 "skip_download": True,
-                "nocheckcertificate": True,
             },
         },
     ]
 
+    def __init__(self, downloader=None):
+        """Constructor. Receives an optional downloader."""
+        super(YouMakerIE, self).__init__(downloader=downloader)
+        self.__protocol = "https"
+        self.__video_id = None
+        self.__cache = {}
+
+    def _set_id_and_protocol(self, url):
+        self.__video_id = self._match_id(url)
+        if url.startswith("http://"):
+            self.__protocol = "http"
+
+    def _fix_url(self, url):
+        if url.startswith("//"):
+            return "%s:%s" % (self.__protocol, url)
+        return url
+
+    @property
+    def _base_url(self):
+        return self._fix_url("//www.youmaker.com")
+
+    @property
+    def _asset_url(self):
+        # as this url might change in the future
+        # it needs to be extracted from some js magic...
+        return self._fix_url("//vs.youmaker.com/assets")
+
+    def _api(self, path, cache=False, **kwargs):
+        """
+        call the YouMaker JSON API and return the data
+
+        path:       API endpoint
+        **kwargs:   parameters passed to _download_json()
+        """
+        key = hash((path, compat_urllib_parse_urlencode(kwargs.get("query", {}))))
+        if cache and key in self.__cache:
+            return self.__cache[key]
+
+        url = "%s/v1/api/%s" % (self._base_url, path)
+        info = self._download_json(url, self.__video_id, **kwargs)
+        status = info.get("status", "something went wrong")
+        data = info.get("data")
+        if status != "ok" or data is None:
+            raise ExtractorError(status, expected=True)
+
+        if cache:
+            self.__cache[key] = data
+
+        return data
+
+    def _categories_by_id(self, cid):
+        category_map = self.__cache.get("category_map")
+        if category_map is None:
+            category_list = self._api(
+                "video/category/list", note="Downloading categories"
+            )
+            category_map = {item["category_id"]: item for item in category_list}
+            self.__cache["category_map"] = category_map
+
+        categories = []
+        while True:
+            item = category_map.get(cid)
+            if item is None or item["category_name"] in categories:
+                break
+            categories.insert(0, item["category_name"])
+            cid = item["parent_category_id"]
+
+        return categories
+
+    def _get_subtitles(self, system_id):
+        try:
+            assert system_id is not None
+            subs_list = self._api(
+                "video/subtitle",
+                note="checking for subtitles",
+                query={"systemid": system_id},
+            )
+        except (AssertionError, ExtractorError):
+            return {}
+
+        subtitles = {}
+        for item in subs_list:
+            subtitles.setdefault(item["language_code"], []).append(
+                {"url": "%s/%s" % (self._asset_url, item["url"])}
+            )
+
+        return subtitles
+
     def _real_extract(self, url):
-        video_id = self._match_id(url)
-        info = self._download_json(
-            "https://youmaker.com/v1/api/video/metadata/%s" % video_id, video_id
+        self._set_id_and_protocol(url)
+
+        info = self._api(
+            "video/metadata/%s" % self.__video_id, note="Downloading video metadata"
         )
 
-        status = info.get("status", "something went wrong")
-        if status != "ok":
-            raise utils.ExtractorError(status, expected=True)
+        # check some dictionary keys so it's safe to use them
+        mandatory_keys = {"video_uid", "title", "data"}
+        missing_keys = mandatory_keys - set(info.keys())
+        if missing_keys:
+            raise ExtractorError("Missing video metadata: %s" % ", ".join(missing_keys))
 
-        info = info["data"]
-        video_info = info.get("data", "")
+        tag_str = info.get("tag")
+        if tag_str:
+            tags = [tag.strip() for tag in tag_str.strip("[]").split(",")]
+        else:
+            tags = None
+
+        channel_url = (
+            "%s/channel/%s" % (self._base_url, info["channel_uid"])
+            if "channel_uid" in info
+            else None
+        )
+
+        video_info = info["data"]  # asserted before
         duration = video_info.get("duration")
+
         formats = []
         playlist = video_info.get("videoAssets", {}).get("Stream")
 
         if playlist:
             formats.extend(
                 self._extract_m3u8_formats(
-                    playlist,
-                    video_id,
+                    self._fix_url(playlist),
+                    self.__video_id,
                     ext="mp4",
                 )
             )
@@ -68,18 +177,20 @@ class YouMakerIE(InfoExtractor):
                     item["filesize_approx"] = 128 * item["tbr"] * duration
 
         return {
-            "id": info["video_uid"],
+            "id": info["video_uid"],  # asserted before
+            "title": info["title"],  # asserted before
+            "description": info.get("description"),
             "formats": formats,
-            "title": info["title"],
-            "description": info["description"],
-            "timestamp": utils.parse_iso8601(info["uploaded_at"]),
-            "upload_date": utils.unified_strdate(info["uploaded_at"]),
+            "timestamp": parse_iso8601(info.get("uploaded_at")),
+            "upload_date": unified_strdate(info.get("uploaded_at")),
             "uploader": info.get("uploaded_by"),
             "duration": duration,
+            "categories": self._categories_by_id(info.get("category_id")),
+            "tags": tags,
             "channel": info.get("channel_name"),
             "channel_id": info.get("channel_uid"),
-            "channel_url": "https://www.youmaker.com/channel/%s"
-            % info.get("channel_uid", ""),
-            "thumbnails": [{"url": info["thumbmail_path"]}],
-            "view_count": utils.int_or_none(info.get("click")),
+            "channel_url": channel_url,
+            "thumbnail": info.get("thumbmail_path"),
+            "view_count": info.get("click"),
+            "subtitles": self.extract_subtitles(info.get("system_id")),
         }
