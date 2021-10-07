@@ -1228,6 +1228,7 @@
  - **youku**: 优酷
  - **youku:show**
  - **YouMaker**
+ - **YouMakerPlaylist**
  - **YouNowChannel**
  - **YouNowLive**
  - **YouNowMoment**
