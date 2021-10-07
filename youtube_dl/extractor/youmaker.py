@@ -1,14 +1,20 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import re
+
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse_urlencode
+from ..compat import (
+    compat_urllib_parse_urlencode,
+    compat_urllib_parse_urlparse,
+    compat_urlparse,
+)
 from ..utils import parse_iso8601, unified_strdate, ExtractorError
 
 
 class YouMakerIE(InfoExtractor):
     _VALID_URL = r"""(?x)
-                    https?://(?:www\.)?youmaker\.com/
+                    (?P<protocol>https?)://(?:www\.)?youmaker\.com/
                     (?:v|video|embed)/
                     (?P<id>[0-9a-zA-Z-]+)
                     """
@@ -45,13 +51,15 @@ class YouMakerIE(InfoExtractor):
         """Constructor. Receives an optional downloader."""
         super(YouMakerIE, self).__init__(downloader=downloader)
         self.__protocol = "https"
-        self.__video_id = None
         self.__cache = {}
 
-    def _set_id_and_protocol(self, url):
-        self.__video_id = self._match_id(url)
-        if url.startswith("http://"):
-            self.__protocol = "http"
+    @classmethod
+    def _match_url(cls, url):
+        if "_VALID_URL_RE" not in cls.__dict__:
+            cls._VALID_URL_RE = re.compile(cls._VALID_URL)
+        match = cls._VALID_URL_RE.match(url)
+        assert match
+        return match.groupdict()
 
     def _fix_url(self, url):
         if url.startswith("//"):
@@ -68,11 +76,16 @@ class YouMakerIE(InfoExtractor):
         # it needs to be extracted from some js magic...
         return self._fix_url("//vs.youmaker.com/assets")
 
-    def _api(self, path, cache=False, **kwargs):
+    def _live_url(self, video_id):
+        return self._fix_url("//live.youmaker.com/%s/playlist.m3u8" % video_id)
+
+    def _api(self, uid, path, cache=False, **kwargs):
         """
-        call the YouMaker JSON API and return the data
+        call the YouMaker JSON API and return the data object
+        otherwise raises ExtractorError
 
         path:       API endpoint
+        cache:      if True, use cached result on multiple calls
         **kwargs:   parameters passed to _download_json()
         """
         key = hash((path, compat_urllib_parse_urlencode(kwargs.get("query", {}))))
@@ -80,11 +93,11 @@ class YouMakerIE(InfoExtractor):
             return self.__cache[key]
 
         url = "%s/v1/api/%s" % (self._base_url, path)
-        info = self._download_json(url, self.__video_id, **kwargs)
+        info = self._download_json(url, uid, **kwargs)
         status = info.get("status", "something went wrong")
         data = info.get("data")
         if status != "ok" or data is None:
-            raise ExtractorError(status, expected=True)
+            raise ExtractorError(status, video_id=uid, expected=True)
 
         if cache:
             self.__cache[key] = data
@@ -95,7 +108,7 @@ class YouMakerIE(InfoExtractor):
         category_map = self.__cache.get("category_map")
         if category_map is None:
             category_list = self._api(
-                "video/category/list", note="Downloading categories"
+                None, "video/category/list", note="Downloading categories"
             )
             category_map = {item["category_id"]: item for item in category_list}
             self.__cache["category_map"] = category_map
@@ -114,6 +127,7 @@ class YouMakerIE(InfoExtractor):
         try:
             assert system_id is not None
             subs_list = self._api(
+                system_id,
                 "video/subtitle",
                 note="checking for subtitles",
                 query={"systemid": system_id},
@@ -129,19 +143,17 @@ class YouMakerIE(InfoExtractor):
 
         return subtitles
 
-    def _real_extract(self, url):
-        self._set_id_and_protocol(url)
-
-        info = self._api(
-            "video/metadata/%s" % self.__video_id, note="Downloading video metadata"
-        )
-
+    def _video_entry(self, info):
         # check some dictionary keys so it's safe to use them
         mandatory_keys = {"video_uid", "title", "data"}
         missing_keys = mandatory_keys - set(info.keys())
         if missing_keys:
-            raise ExtractorError("Missing video metadata: %s" % ", ".join(missing_keys))
+            raise ExtractorError(
+                "Missing video metadata: %s" % ", ".join(missing_keys),
+                video_id=self.ie_key(),
+            )
 
+        video_uid = info["video_uid"]
         tag_str = info.get("tag")
         if tag_str:
             tags = [tag.strip() for tag in tag_str.strip("[]").split(",")]
@@ -156,31 +168,45 @@ class YouMakerIE(InfoExtractor):
 
         video_info = info["data"]  # asserted before
         duration = video_info.get("duration")
-
         formats = []
-        playlist = video_info.get("videoAssets", {}).get("Stream")
+
+        if info.get("live") and info.get("live_status") == "start":
+            is_live = True
+            playlist = self._live_url(video_uid)
+        else:
+            is_live = False
+            playlist = video_info.get("videoAssets", {}).get("Stream")
 
         if playlist:
             formats.extend(
                 self._extract_m3u8_formats(
                     self._fix_url(playlist),
-                    self.__video_id,
+                    video_uid,
                     ext="mp4",
+                    fatal=False,
+                    errnote="%s (playlist.m3u8)" % video_uid,
                 )
             )
 
-        if formats:
-            self._sort_formats(formats)
-            for item in formats:
-                item["format_id"] = "hls-%dp" % item["height"]
-                if duration and item.get("tbr"):
-                    item["filesize_approx"] = 128 * item["tbr"] * duration
+        if not formats:
+            raise ExtractorError(
+                "No video formats found!", video_id=video_uid, expected=True
+            )
+
+        self._sort_formats(formats)
+        for item in formats:
+            if "height" not in item:
+                continue
+            item["format_id"] = "hls-%dp" % item["height"]
+            if duration and item.get("tbr"):
+                item["filesize_approx"] = 128 * item["tbr"] * duration
 
         return {
-            "id": info["video_uid"],  # asserted before
+            "id": video_uid,
             "title": info["title"],  # asserted before
             "description": info.get("description"),
             "formats": formats,
+            "is_live": is_live,
             "timestamp": parse_iso8601(info.get("uploaded_at")),
             "upload_date": unified_strdate(info.get("uploaded_at")),
             "uploader": info.get("uploaded_by"),
@@ -194,3 +220,179 @@ class YouMakerIE(InfoExtractor):
             "view_count": info.get("click"),
             "subtitles": self.extract_subtitles(info.get("system_id")),
         }
+
+    def _real_extract(self, url):
+        url_info = self._match_url(url)
+        self.__protocol = url_info["protocol"]
+        info = self._api(
+            url_info["id"],
+            "video/metadata/%s" % url_info["id"],
+            note="Downloading video metadata",
+        )
+
+        return self._video_entry(info)
+
+
+class YouMakerPlaylistIE(YouMakerIE):
+    _VALID_URL = r"""(?x)
+                    https?://(?:www\.)?youmaker\.com/
+                    (?:channel|playlist)/(?P<id>[0-9a-zA-Z-]+)
+                    """
+    _TESTS = [
+        {
+            # all videos from channel
+            "url": "http://www.youmaker.com/channel/f06b2e8d-219e-4069-9003-df343ac5fcf3",
+            "info_dict": {
+                "id": "f06b2e8d-219e-4069-9003-df343ac5fcf3",
+                "title": "YoYo Cello",
+                "description": "Connect the World Through Music. \nConnect Our Hearts with Music.",
+            },
+            "playlist_mincount": 30,
+            "params": {
+                "nocheckcertificate": True,
+            },
+        },
+        {
+            # all videos from channel playlist
+            "url": "https://www.youmaker.com/channel/f8d585f8-2ff7-4c3c-b1ea-a78d77640d54/"
+            "playlists/f99a120c-7a5e-47b2-9235-3817d1c12662",
+            "info_dict": {
+                "id": "f99a120c-7a5e-47b2-9235-3817d1c12662",
+                "title": "Mini Cakes",
+            },
+            "playlist_mincount": 9,
+            "params": {
+                "nocheckcertificate": True,
+            },
+        },
+    ]
+
+    def _channel_entries(self, _channel_uid, api_path, **api_params):
+        request_limit = 50
+        offset = int(api_params.get("offset", 0))
+
+        while True:
+            api_params.update({"offset": offset, "limit": request_limit})
+            info = self._api(
+                _channel_uid,
+                path=api_path,
+                query=api_params,
+                note="Downloading video metadata (%d-%d)"
+                % (offset, offset + request_limit),
+            )
+            offset += request_limit
+            for item in info:
+                try:
+                    entry = self._video_entry(item)
+                except ExtractorError as exc:
+                    self.report_warning(str(exc))
+                    continue
+                yield entry
+
+            if len(info) < request_limit:
+                break
+
+    def _playlist_entries(self, playlist_uid, request_limit=50):
+        video_extractor = YouMakerIE(downloader=self._downloader)
+        offset = 0
+
+        while True:
+            info = self._api(
+                playlist_uid,
+                path="playlist/video",
+                query={
+                    "playlist_uid": playlist_uid,
+                    "offset": offset,
+                    "limit": request_limit,
+                },
+                note="Downloading video metadata (%d-%d)"
+                % (offset, offset + request_limit),
+            )
+            offset += request_limit
+            for item in info:
+                url = "%s/video/%s" % (self._base_url, item["video_uid"])
+                try:
+                    entry = video_extractor._real_extract(url)
+                except ExtractorError as exc:
+                    self.report_warning(str(exc))
+                    continue
+                yield entry
+
+            if len(info) < request_limit:
+                break
+
+    def _real_extract(self, url):
+        parsed_url = compat_urllib_parse_urlparse(url)
+        self.__protocol = parsed_url.scheme
+
+        playlist_matches = (
+            (
+                "playlist",
+                r"(/channel/[a-zA-z0-9-]+)?/playlists?/(?P<id>[a-zA-z0-9-]+).*",
+            ),
+            ("hottest", r"/channel/(?P<id>[a-zA-z0-9-]+)/hottest(/.*)?"),
+            ("channel", r"/channel/(?P<id>[a-zA-z0-9-]+)(/.*)?"),
+        )
+
+        for name, regex in playlist_matches:
+            match = re.match(regex, parsed_url.path)
+            if not match:
+                continue
+            break
+        else:
+            raise ExtractorError(
+                "unsupported url", video_id=self.ie_key(), expected=True
+            )
+
+        uid = match.group("id")
+        if name == "playlist":
+            info = self._api(
+                uid,
+                "playlist/%s" % uid,
+                note="Downloading playlist metadata",
+            )
+            return self.playlist_result(
+                self._playlist_entries(
+                    info["playlist_uid"],
+                ),
+                playlist_id=info["playlist_uid"],
+                playlist_title=info.get("name"),
+                playlist_description=None,
+            )
+
+        # otherwise provide all channel videos
+        info = self._api(
+            uid,
+            "video/channel/metadata/%s" % uid,
+            note="Downloading channel metadata",
+        )
+        uid = info["channel_uid"]
+
+        if name == "hottest":
+            return self.playlist_result(
+                self._channel_entries(uid, api_path="video/hottest", channel_uid=uid),
+                playlist_id=uid,
+                playlist_title=info.get("name"),
+                playlist_description=info.get("description"),
+            )
+
+        query = dict(compat_urlparse.parse_qsl(parsed_url.query))
+        if "keywords" in query:
+            # filter by keywords
+            api_path = "video/search"
+            params = {
+                "keywords": query["keywords"],
+                "channel_uid": uid,
+                "order": query.get("order", 1),
+            }
+        else:
+            # return all channel entries
+            api_path = "video/channel/%s" % uid
+            params = {"offset": query.get("offset", 0)}
+
+        return self.playlist_result(
+            self._channel_entries(uid, api_path=api_path, **params),
+            playlist_id=info["channel_uid"],
+            playlist_title=info.get("name"),
+            playlist_description=info.get("description"),
+        )
