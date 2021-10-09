@@ -1227,8 +1227,7 @@
  - **YouJizz**
  - **youku**: 优酷
  - **youku:show**
- - **YouMaker**
- - **YouMakerPlaylist**
+ - **Youmaker**
  - **YouNowChannel**
  - **YouNowLive**
  - **YouNowMoment**
