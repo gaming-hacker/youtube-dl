@@ -145,6 +145,10 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     --list-extractors                         List all supported extractors
     --extractor-descriptions                  Output descriptions of all
                                               supported extractors
+    --determine-extractors                    List the extractor that would be
+                                              used for each URL. Exit status
+                                              indicates at least one successful
+                                              match.
     --force-generic-extractor                 Force extraction to use the
                                               generic extractor
     --default-search PREFIX                   Use this prefix for unqualified
