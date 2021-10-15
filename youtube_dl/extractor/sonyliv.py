@@ -9,6 +9,8 @@ from ..compat import compat_HTTPError
 from ..utils import (
     ExtractorError,
     int_or_none,
+    try_get,
+    compat_str
 )
 
 
@@ -98,7 +100,7 @@ class SonyLIVIE(InfoExtractor):
             title += ' - ' + episode
         subtitles = {}
         for subtitle in (content.get('subtitle') or []):
-            base_url = subtitle.get('subtitleUrl')
+            base_url = try_get(subtitle, lambda x: x['subtitleUrl'], compat_str)
             if not base_url:
                 continue
             lang_code = subtitle.get('subtitleLanguageName')
