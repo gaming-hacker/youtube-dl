@@ -39,6 +39,7 @@ from ..utils import (
     try_get,
     unescapeHTML,
     unified_strdate,
+    date_from_str,
     unsmuggle_url,
     update_url_query,
     url_or_none,
@@ -2734,6 +2735,24 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
                 data, lambda x: x['metadata']['playlistMetadataRenderer'], dict)
             if renderer:
                 title = renderer.get('title')
+                description = renderer.get('description')
+
+                stats = try_get(
+                    data, lambda x: x['sidebar']['playlistSidebarRenderer']['items'][0]['playlistSidebarPrimaryInfoRenderer']['stats'])
+                view_count_text = try_get(
+                    stats, lambda x: x[1]['simpleText'], compat_str) or ''
+                view_count = str_to_int(self._search_regex(
+                    r'^([\d,]+)', re.sub(r'\s', '', view_count_text),
+                    'view count', default=None))
+
+                last_updated_text = try_get(stats, lambda x: x[2]['runs'][1]['text']) or try_get(stats, lambda x: x[2]['runs'][0]['text'])
+                last_updated_text = last_updated_text.replace('Updated ', '') if 'Updated ' in last_updated_text else last_updated_text
+                try:
+                    last_updated = unified_strdate(last_updated_text)
+                    if last_updated is None:
+                        last_updated = date_from_str(last_updated_text).strftime("%Y%m%d")
+                except ValueError:
+                    last_updated = None
             else:
                 renderer = try_get(
                     data, lambda x: x['header']['hashtagHeaderRenderer'], dict)
@@ -2742,7 +2761,9 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
         playlist = self.playlist_result(
             self._entries(selected_tab, item_id, webpage),
             playlist_id=playlist_id, playlist_title=title,
-            playlist_description=description)
+            playlist_description=description,
+            view_count=view_count,
+            last_updated=last_updated)
         playlist.update(self._extract_uploader(data))
         return playlist
 
