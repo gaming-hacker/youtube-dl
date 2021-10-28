@@ -229,8 +229,6 @@ class MTVServicesInfoExtractor(InfoExtractor):
             if info:
                 entries.append(info)
 
-        if len(entries) == 1:
-            return entries[0]
         return self.playlist_result(
             entries, playlist_title=title, playlist_description=description)
 
@@ -292,7 +290,17 @@ class MTVServicesInfoExtractor(InfoExtractor):
             main_container = self._extract_child_with_type(data, 'MainContainer')
             ab_testing = self._extract_child_with_type(main_container, 'ABTesting')
             video_player = self._extract_child_with_type(ab_testing or main_container, 'VideoPlayer')
-            mgid = try_get(video_player, lambda x: x['props']['media']['video']['config']['uri'])
+            if video_player:
+                mgid = video_player['props']['media']['video']['config']['uri']
+            else:
+                flex_wrapper = self._extract_child_with_type(ab_testing or main_container, 'FlexWrapper')
+                auth_suite_wrapper = self._extract_child_with_type(flex_wrapper, 'AuthSuiteWrapper')
+                player = self._extract_child_with_type(auth_suite_wrapper or flex_wrapper, 'Player')
+                if player:
+                    mgid = player['props']['videoDetail']['mgid']
+
+        if not mgid:
+            raise ExtractorError('Could not extract mgid')
 
         return mgid
 
@@ -300,11 +308,7 @@ class MTVServicesInfoExtractor(InfoExtractor):
         title = url_basename(url)
         webpage = self._download_webpage(url, title)
         mgid = self._extract_mgid(webpage)
-        if not mgid:
-            raise ExtractorError('Unable to determine MTVServices ID (mgid)', expected=True)
         videos_info = self._get_videos_info(mgid)
-        if videos_info and videos_info.get('_type') != 'playlist':
-            videos_info['display_id'] = title
         return videos_info
 
 
