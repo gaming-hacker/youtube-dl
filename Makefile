@@ -18,12 +18,10 @@ SYSCONFDIR = $(shell if [ $(PREFIX) = /usr -o $(PREFIX) = /usr/local ]; then ech
 MARKDOWN = $(shell if [ `pandoc -v | head -n1 | cut -d" " -f2 | head -c1` = "2" ]; then echo markdown-smart; else echo markdown; fi)
 
 install: youtube-dl youtube-dl.1 youtube-dl.bash-completion youtube-dl.zsh youtube-dl.fish
-	install -d $(DESTDIR)$(BINDIR)
-	install -m 755 youtube-dl $(DESTDIR)$(BINDIR)
+	install -d $(BINDIR)
+	install -m 755 youtube-dl $(BINDIR)
 	install -d $(DESTDIR)$(MANDIR)/man1
 	install -m 644 youtube-dl.1 $(DESTDIR)$(MANDIR)/man1
-	install -d $(DESTDIR)$(SYSCONFDIR)/bash_completion.d
-	install -m 644 youtube-dl.bash-completion $(DESTDIR)$(SYSCONFDIR)/bash_completion.d/youtube-dl
 
 codetest:
 	flake8 .
