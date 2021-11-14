@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # coding: utf-8
 
 from __future__ import unicode_literals
@@ -59,9 +58,10 @@ from .compat import (
     compat_struct_unpack,
     compat_urllib_error,
     compat_urllib_parse,
+    compat_urllib_parse_unquote,
+    compat_urllib_parse_unquote_plus,
     compat_urllib_parse_urlencode,
     compat_urllib_parse_urlparse,
-    compat_urllib_parse_unquote_plus,
     compat_urllib_request,
     compat_urlparse,
     compat_xpath,
@@ -1717,8 +1717,6 @@ ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙ�
                                         'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y')))
 
 DATE_FORMATS = (
-    '%d %B %Y',
-    '%d %b %Y',
     '%B %d %Y',
     '%B %dst %Y',
     '%B %dnd %Y',
@@ -1763,6 +1761,11 @@ DATE_FORMATS_DAY_FIRST.extend([
     '%d/%m/%Y',
     '%d/%m/%y',
     '%d/%m/%Y %H:%M:%S',
+    '%d %B %Y',
+    '%d %b %Y',
+    '%d-%b-%Y',
+    '%H:%M %d-%b-%Y',
+    '%H:%M:%S %d-%b-%Y',
 ])
 
 DATE_FORMATS_MONTH_FIRST = list(DATE_FORMATS)
@@ -1772,6 +1775,11 @@ DATE_FORMATS_MONTH_FIRST.extend([
     '%m/%d/%Y',
     '%m/%d/%y',
     '%m/%d/%Y %H:%M:%S',
+    '%B %d %Y',
+    '%b %d %Y',
+    '%b-%d-%Y',
+    '%H:%M %b-%d-%Y',
+    '%H:%M:%S %b-%d-%Y',
 ])
 
 PACKED_CODES_RE = r"}\('(.+)',(\d+),(\d+),'([^']+)'\.split\('\|'\)"
@@ -1954,7 +1962,9 @@ def get_element_by_attribute(attribute, value, html, escape_value=True):
 def get_elements_by_class(class_name, html):
     """Return the content of all tags with the specified class in the passed HTML document as a list"""
     return get_elements_by_attribute(
-        'class', r'[^\'"]*\b%s\b[^\'"]*' % re.escape(class_name),
+        # class names can contain alphanumeric, -, _ and \ for escapes
+        # don't allow a word break at -
+        'class', r'(?:[\w\s\\-]*?[\w\s])?\b%s\b(?:[\w\s\\][\w\s\\-]*?)?' % re.escape(class_name),
         html, escape_value=False)
 
 
@@ -1965,11 +1975,13 @@ def get_elements_by_attribute(attribute, value, html, escape_value=True):
 
     retlist = []
     for m in re.finditer(r'''(?xs)
-        <([a-zA-Z0-9:._-]+)
+        <([a-zA-Z0-9:._-]+)	# conservative pattern: HTML tags don't have :._-
+         # (?:\s[^>]+)          # this seems to be simpler than the below and work the same?
          (?:\s+[a-zA-Z0-9:._-]+(?:=[a-zA-Z0-9:._-]*|="[^"]*"|='[^']*'|))*?
-         \s+%s=['"]?%s['"]?
+         \s*\b%s\s*=\s*(?P<__q>'|"|\b)%s(?P=__q)
+         # (?:\s[^>]+)?         # as above
          (?:\s+[a-zA-Z0-9:._-]+(?:=[a-zA-Z0-9:._-]*|="[^"]*"|='[^']*'|))*?
-        \s*>
+         \s*>
         (?P<content>.*?)
         </\1>
     ''' % (re.escape(attribute), value), html):
@@ -2245,7 +2257,8 @@ def encodeFilename(s, for_subprocess=False):
     if sys.platform.startswith('java'):
         return s
 
-    return s.encode(get_subprocess_encoding(), 'ignore')
+    # If encoding is (eg) 'ascii', use escape sequences (allows round-trip test)
+    return s.encode(get_subprocess_encoding(), 'backslashreplace')
 
 
 def decodeFilename(b, for_subprocess=False):
@@ -2772,7 +2785,8 @@ class YoutubeDLCookieJar(compat_cookiejar.MozillaCookieJar):
             if cookie.expires is None:
                 cookie.expires = 0
 
-        with io.open(filename, 'w', encoding='utf-8') as f:
+        with io.open(filename, 'r+', encoding='utf-8') as f:
+            assert 0 == f.seek(0)
             f.write(self._HEADER)
             now = time.time()
             for cookie in self:
@@ -2804,6 +2818,7 @@ class YoutubeDLCookieJar(compat_cookiejar.MozillaCookieJar):
                 f.write(
                     '\t'.join([cookie.domain, initial_dot, cookie.path,
                                secure, expires, name, value]) + '\n')
+                assert f.tell() == f.truncate()
 
     def load(self, filename=None, ignore_discard=False, ignore_expires=False):
         """Load cookies from a file."""
@@ -2938,7 +2953,16 @@ class YoutubeDLRedirectHandler(compat_urllib_request.HTTPRedirectHandler):
 
 def extract_timezone(date_str):
     m = re.search(
-        r'^.{8,}?(?P<tz>Z$| ?(?P<sign>\+|-)(?P<hours>[0-9]{2}):?(?P<minutes>[0-9]{2})$)',
+        r'''(?x)
+            ^.{8,}?                                              # >=8 char non-TZ prefix, if present
+            (?P<tz>Z|                                            # just the UTC Z, or
+                (?:(?<=.\b\d{4}|\b\d{2}:\d\d)|                   # preceded by 4 digits or hh:mm or
+                   (?<!.\b[a-zA-Z]{3}|[a-zA-Z]{4}|..\b\d\d))     # not preceded by 3 alpha word or >= 4 alpha or 2 digits
+                   [ ]?                                          # optional space
+                (?P<sign>\+|-)                                   # +/-
+                (?P<hours>[0-9]{2}):?(?P<minutes>[0-9]{2})       # hh[:]mm
+            $)
+        ''',
         date_str)
     if not m:
         timezone = datetime.timedelta()
@@ -3354,8 +3378,7 @@ class locked_file(object):
 
 
 def get_filesystem_encoding():
-    encoding = sys.getfilesystemencoding()
-    return encoding if encoding is not None else 'utf-8'
+    return sys.getfilesystemencoding() or sys.getdefaultencoding() or 'utf-8'
 
 
 def shell_quote(args):
@@ -3365,6 +3388,8 @@ def shell_quote(args):
         if isinstance(a, bytes):
             # We may get a filename encoded with 'encodeFilename'
             a = a.decode(encoding)
+            if not encoding.lower().startswith('ut'):
+                a = a.encode('utf-8').decode('unicode-escape')
         quoted_args.append(compat_shlex_quote(a))
     return ' '.join(quoted_args)
 
@@ -4286,15 +4311,32 @@ def parse_codecs(codecs_str):
 def urlhandle_detect_ext(url_handle):
     getheader = url_handle.headers.get
 
-    cd = getheader('Content-Disposition')
+    def encode_compat_str_or_none(x, encoding='iso-8859-1', errors='ignore'):
+        return encode_compat_str(x, encoding=encoding, errors=errors) if x else None
+
+    cd = encode_compat_str_or_none(getheader('Content-Disposition'))
     if cd:
-        m = re.match(r'attachment;\s*filename="(?P<filename>[^"]+)"', cd)
+        m = re.match(r'''(?xi)
+            attachment;\s*
+            (?:filename\s*=[^;]+?;\s*)?                    # possible initial filename=...;, ignored
+            filename(?P<x>\*)?\s*=\s*                      # filename/filename* =
+                (?(x)(?P<charset>\S+?)'[\w-]*'|(?P<q>")?)  # if * then charset'...' else maybe "
+                (?P<filename>(?(q)[^"]+(?=")|[^\s;]+))         # actual name of file
+            ''', cd)
         if m:
-            e = determine_ext(m.group('filename'), default_ext=None)
+            m = m.groupdict()
+            filename = m.get('filename')
+            if m.get('x'):
+                try:
+                    filename = compat_urllib_parse_unquote(filename, encoding=m.get('charset', 'utf-8'))
+                except LookupError:  # unrecognised character set name
+                    pass
+            e = determine_ext(filename, default_ext=None)
             if e:
                 return e
 
-    return mimetype2ext(getheader('Content-Type'))
+    ct = encode_compat_str_or_none(getheader('Content-Type'))
+    return mimetype2ext(ct)
 
 
 def encode_data_uri(data, mime_type):
@@ -4610,7 +4652,7 @@ def dfxp2srt(dfxp_data):
             continue
         default_style.update(style)
 
-    for para, index in zip(paras, itertools.count(1)):
+    for index, para in enumerate(paras, 1):
         begin_time = parse_dfxp_time_expr(para.attrib.get('begin'))
         end_time = parse_dfxp_time_expr(para.attrib.get('end'))
         dur = parse_dfxp_time_expr(para.attrib.get('dur'))

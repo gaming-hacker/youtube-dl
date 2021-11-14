@@ -105,6 +105,7 @@ from youtube_dl.utils import (
     cli_valueless_option,
     cli_bool_option,
     parse_codecs,
+    urlhandle_detect_ext,
 )
 from youtube_dl.compat import (
     compat_chr,
@@ -370,6 +371,12 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(unified_timestamp('Sep 11, 2013 | 5:49 AM'), 1378878540)
         self.assertEqual(unified_timestamp('December 15, 2017 at 7:49 am'), 1513324140)
         self.assertEqual(unified_timestamp('2018-03-14T08:32:43.1493874+00:00'), 1521016363)
+        self.assertEqual(unified_timestamp('11:31 17-Jun-2021'), 1623929460)
+        self.assertEqual(unified_timestamp('11:31 17-Jun-2021-0000'), 1623929460)
+        from youtube_dl.utils import DATE_FORMATS_DAY_FIRST
+        DATE_FORMATS_DAY_FIRST.append('%H:%M %d-%m-%Y')
+        self.assertEqual(unified_timestamp('17:30 27-02-2016'), 1456594200)
+        self.assertEqual(unified_timestamp('17:30 27-02-2016-0000'), 1456594200)
 
     def test_determine_ext(self):
         self.assertEqual(determine_ext('http://example.com/foo/bar.mp4/?download'), 'mp4')
@@ -480,7 +487,7 @@ class TestUtil(unittest.TestCase):
         args = ['ffmpeg', '-i', encodeFilename('ñ€ß\'.mp4')]
         self.assertEqual(
             shell_quote(args),
-            """ffmpeg -i 'ñ€ß'"'"'.mp4'""" if compat_os_name != 'nt' else '''ffmpeg -i "ñ€ß'.mp4"''')
+            """ffmpeg -i 'ñ€ß'"'"'.mp4'""" if not(compat_os_name in ('nt', 'ce')) else '''ffmpeg -i "ñ€ß'.mp4"''')
 
     def test_float_or_none(self):
         self.assertEqual(float_or_none('42.42'), 42.42)
@@ -1085,7 +1092,7 @@ class TestUtil(unittest.TestCase):
     def test_args_to_str(self):
         self.assertEqual(
             args_to_str(['foo', 'ba/r', '-baz', '2 be', '']),
-            'foo ba/r -baz \'2 be\' \'\'' if compat_os_name != 'nt' else 'foo ba/r -baz "2 be" ""'
+            'foo ba/r -baz \'2 be\' \'\'' if not(compat_os_name in ('nt', 'ce')) else 'foo ba/r -baz "2 be" ""'
         )
 
     def test_parse_filesize(self):
@@ -1456,7 +1463,10 @@ Line 1
 
     def test_get_elements_by_class(self):
         html = '''
-            <span class="foo bar">nice</span><span class="foo bar">also nice</span>
+            <span class="not-foo bar">nasty</span>
+            <span class="foo bar">nice</span>
+            <span class="bar foo">"also nice"</span>
+            <span class="bar foo-impostor">also nasty</span>
         '''
 
         self.assertEqual(get_elements_by_class('foo', html), ['nice', 'also nice'])
@@ -1474,6 +1484,57 @@ Line 1
     def test_clean_podcast_url(self):
         self.assertEqual(clean_podcast_url('https://www.podtrac.com/pts/redirect.mp3/chtbl.com/track/5899E/traffic.megaphone.fm/HSW7835899191.mp3'), 'https://traffic.megaphone.fm/HSW7835899191.mp3')
         self.assertEqual(clean_podcast_url('https://play.podtrac.com/npr-344098539/edge1.pod.npr.org/anon.npr-podcasts/podcast/npr/waitwait/2020/10/20201003_waitwait_wwdtmpodcast201003-015621a5-f035-4eca-a9a1-7c118d90bc3c.mp3'), 'https://edge1.pod.npr.org/anon.npr-podcasts/podcast/npr/waitwait/2020/10/20201003_waitwait_wwdtmpodcast201003-015621a5-f035-4eca-a9a1-7c118d90bc3c.mp3')
+
+    def test_urlhandle_detect_ext(self):
+
+        class UrlHandle(object):
+            _info = {}
+
+            def __init__(self, info):
+                self._info = info
+
+            @property
+            def headers(self):
+                return self._info
+
+        # header with non-ASCII character and contradictory Content-Type
+        urlh = UrlHandle({
+            'Content-Disposition': b'attachment; filename="Epis\xf3dio contains non-ASCI ISO 8859-1 character.mp3"',
+            'Content-Type': b'audio/aac',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with no Content-Disposition
+        urlh = UrlHandle({
+            'Content-Type': b'audio/mp3',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with Content-Disposition and unquoted filename
+        urlh = UrlHandle({
+            'Content-Disposition': b'attachment; filename=unquoted_filename_token.mp3',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with Content-Disposition including spacing and uppercase
+        urlh = UrlHandle({
+            'Content-Disposition': b'ATTACHMENT; FileName = unquoted_filename_token.mp3',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with Content-Disposition and extended filename parameter syntax
+        urlh = UrlHandle({
+            'Content-Disposition': b"attachment; filename*=iso8859-15''costs%201%A4%20filename.mp3",
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with Content-Disposition and both filename parameter syntaxes
+        urlh = UrlHandle({
+            'Content-Disposition': b'''attachment; filename="should ignore.mp4";
+             FileName* = iso8859-15''costs%201%A4%20filename.mp3''',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
+        # header with Content-Disposition and 'wrong' order of both syntaxes
+        urlh = UrlHandle({
+            'Content-Disposition': b'''attachment; filename*=iso8859-15''costs%201%A4%20filename.mp3;
+            filename="should ignore.mp4"''',
+        })
+        self.assertEqual(urlhandle_detect_ext(urlh), 'mp3')
 
 
 if __name__ == '__main__':
