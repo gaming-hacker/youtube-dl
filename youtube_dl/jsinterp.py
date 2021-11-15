@@ -248,8 +248,7 @@ class JSInterpreter(object):
         return self.build_function(argnames, func_m.group('code'))
 
     def call_function(self, funcname, *args):
-        f = self.extract_function(funcname)
-        return f(args)
+        return self.extract_function(funcname)(args)
 
     def build_function(self, argnames, code):
         def resf(args):
