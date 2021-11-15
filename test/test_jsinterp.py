@@ -112,6 +112,13 @@ class TestJSInterpreter(unittest.TestCase):
         ''')
         self.assertEqual(jsi.call_function('z'), 5)
 
+    def test_for_loop(self):
+        # function x() { a=0; for (i=0; i-10; i++) {a++} a }
+        jsi = JSInterpreter('''
+        function x() { a=0; for (i=0; i-10; i = i + 1) {a++} a }
+        ''')
+        self.assertEqual(jsi.call_function('x'), 10)
+
     def test_switch(self):
         jsi = JSInterpreter('''
         function x(f) { switch(f){
@@ -170,6 +177,7 @@ class TestJSInterpreter(unittest.TestCase):
         function x() { a=5; a -= 1, a+=3; return a }
         ''')
         self.assertEqual(jsi.call_function('x'), 7)
+
 
 if __name__ == '__main__':
     unittest.main()
