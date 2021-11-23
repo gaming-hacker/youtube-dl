@@ -717,6 +717,7 @@
  - **Playwire**
  - **pluralsight**
  - **pluralsight:course**
+ - **Podchaser**
  - **podomatic**
  - **Pokemon**
  - **PolskieRadio**
@@ -900,6 +901,7 @@
  - **Streamable**
  - **streamcloud.eu**
  - **StreamCZ**
+ - **StreamFF**
  - **StreetVoice**
  - **StretchInternet**
  - **stv:player**
