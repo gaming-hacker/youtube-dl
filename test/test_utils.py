@@ -378,6 +378,7 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(unified_strdate('Sep 2nd, 2013'), '20130902')
         self.assertEqual(unified_strdate('November 3rd, 2019'), '20191103')
         self.assertEqual(unified_strdate('October 23rd, 2005'), '20051023')
+        self.assertEqual(unified_strdate('20211221'), '20211221')
 
     def test_unified_timestamps(self):
         self.assertEqual(unified_timestamp('December 21, 2010'), 1292889600)
@@ -648,6 +649,8 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(parse_duration('PT1H0.040S'), 3600.04)
         self.assertEqual(parse_duration('PT00H03M30SZ'), 210)
         self.assertEqual(parse_duration('P0Y0M0DT0H4M20.880S'), 260.88)
+        self.assertEqual(parse_duration('01:02:03:050'), 3723.05)
+        self.assertEqual(parse_duration('103:050'), 103.05)
 
     def test_fix_xml_ampersands(self):
         self.assertEqual(
@@ -1147,9 +1150,16 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(parse_count('1000'), 1000)
         self.assertEqual(parse_count('1.000'), 1000)
         self.assertEqual(parse_count('1.1k'), 1100)
+        self.assertEqual(parse_count('1.1 k'), 1100)
+        self.assertEqual(parse_count('1,1 k'), 1100)
+        self.assertEqual(parse_count('1,1kk'), 1100000)
+        self.assertEqual(parse_count('100 views'), 100)
+        self.assertEqual(parse_count('1,100 views'), 1100)
         self.assertEqual(parse_count('1.1kk'), 1100000)
         self.assertEqual(parse_count('1.1kk '), 1100000)
         self.assertEqual(parse_count('1.1kk views'), 1100000)
+        self.assertEqual(parse_count('10M views'), 10000000)
+        self.assertEqual(parse_count('has 10M views'), 10000000)
 
     def test_parse_resolution(self):
         self.assertEqual(parse_resolution(None), {})
