@@ -26,8 +26,10 @@ from ..utils import (
     ExtractorError,
     clean_html,
     dict_get,
+    error_to_compat_str,
     float_or_none,
     int_or_none,
+    js_to_json,
     mimetype2ext,
     parse_codecs,
     parse_duration,
@@ -416,6 +418,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                          (?:.*?\#/)?                                          # handle anchor (#/) redirect urls
                          (?:                                                  # the various things that can precede the ID:
                              (?:(?:v|embed|e)/(?!videoseries))                # v/ or embed/ or e/
+                             |shorts/
                              |(?:                                             # or the v= param in all its forms
                                  (?:(?:watch|movie)(?:_popup)?(?:\.php)?/?)?  # preceding watch(_popup|.php) or nothing (like /?v=xxxx)
                                  (?:\?|\#!?)                                  # the params delimiter ? or # or #!
@@ -1118,6 +1121,22 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'skip_download': True,
             },
         },
+        {
+            # YT 'Shorts'
+            'url': 'https://youtube.com/shorts/4L2J27mJ3Dc',
+            'info_dict': {
+                'id': '4L2J27mJ3Dc',
+                'ext': 'mp4',
+                'upload_date': '20211025',
+                'uploader': 'Charlie Berens',
+                'description': 'md5:976512b8a29269b93bbd8a61edc45a6d',
+                'uploader_id': 'fivedlrmilkshake',
+                'title': 'Midwest Squid Game #Shorts',
+            },
+            'params': {
+                'skip_download': True,
+            },
+        },
     ]
     _formats = {
         '5': {'ext': 'flv', 'width': 400, 'height': 240, 'acodec': 'mp3', 'abr': 64, 'vcodec': 'h263'},
@@ -1391,9 +1410,16 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
     # 2. https://code.videolan.org/videolan/vlc/-/blob/4fb284e5af69aa9ac2100ccbdd3b88debec9987f/share/lua/playlist/youtube.lua#L116
     # 3. https://github.com/ytdl-org/youtube-dl/issues/30097#issuecomment-950157377
     def _extract_n_function_name(self, jscode):
-        return self._search_regex(
-            (r'\.get\("n"\)\)&&\(b=(?P<nfunc>[a-zA-Z0-9$]{3})\([a-zA-Z0-9]\)',),
-            jscode, 'Initial JS player n function name', group='nfunc')
+        target = r'(?P<nfunc>[a-zA-Z0-9$]{3})(?:\[(?P<idx>\d+)\])?'
+        nfunc_and_idx = self._search_regex(
+            r'\.get\("n"\)\)&&\(b=(%s)\([a-zA-Z0-9]\)' % (target, ),
+            jscode, 'Initial JS player n function name')
+        nfunc, idx = re.match(target, nfunc_and_idx).group('nfunc', 'idx')
+        if not idx:
+            return nfunc
+        return self._parse_json(self._search_regex(
+            r'var %s\s*=\s*(\[.+?\]);' % (nfunc, ), jscode,
+            'Initial JS player n function list ({nfunc}[{idx}])'.format(**locals())), nfunc, transform_source=js_to_json)[int(idx)]
 
     def _extract_n_function(self, video_id, player_url):
         player_id = self._extract_player_info(player_url)
@@ -1438,7 +1464,12 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 self._downloader.to_screen('[debug] [%s] %s' % (self.IE_NAME, 'Decrypted nsig {0} => {1}'.format(n_param, self._player_cache[sig_id])))
             return self._player_cache[sig_id]
         except Exception as e:
-            raise ExtractorError(traceback.format_exc(), cause=e, video_id=video_id)
+            self._downloader.report_warning(
+                '[%s] %s (%s %s)' % (
+                    self.IE_NAME,
+                    'Unable to decode n-parameter: download likely to be throttled',
+                    error_to_compat_str(e),
+                    traceback.format_exc()))
 
     def _unthrottle_format_urls(self, video_id, player_url, formats):
         for fmt in formats:
@@ -2407,6 +2438,17 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
     }, {
         'url': 'https://www.youtube.com/watch?list=PLW4dVinRY435CBE_JD3t-0SRXKfnZHS1P&feature=youtu.be&v=M9cJMXmQ_ZU',
         'only_matching': True,
+    }, {
+        'note': 'Search tab',
+        'url': 'https://www.youtube.com/c/3blue1brown/search?query=linear%20algebra',
+        'playlist_mincount': 40,
+        'info_dict': {
+            'id': 'UCYO_jab_esuFRV4b17AJtAw',
+            'title': '3Blue1Brown - Search - linear algebra',
+            'description': 'md5:e1384e8a133307dd10edee76e875d62f',
+            'uploader': '3Blue1Brown',
+            'uploader_id': 'UCYO_jab_esuFRV4b17AJtAw',
+        }
     }]
 
     @classmethod
@@ -2804,8 +2846,9 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
     @staticmethod
     def _extract_selected_tab(tabs):
         for tab in tabs:
-            if try_get(tab, lambda x: x['tabRenderer']['selected'], bool):
-                return tab['tabRenderer']
+            renderer = dict_get(tab, ('tabRenderer', 'expandableTabRenderer')) or {}
+            if renderer.get('selected') is True:
+                return renderer
         else:
             raise ExtractorError('Unable to find selected tab')
 
@@ -2862,6 +2905,8 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             title = channel_title or item_id
             if tab_title:
                 title += ' - %s' % tab_title
+            if selected_tab.get('expandedText'):
+                title += ' - %s' % selected_tab['expandedText']
             description = renderer.get('description')
             playlist_id = renderer.get('externalId')
         else:
