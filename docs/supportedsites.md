@@ -1211,6 +1211,7 @@
  - **youtube:recommended**: YouTube.com recommended videos, ":ytrec" for short (requires authentication)
  - **youtube:search**: YouTube.com searches
  - **youtube:search:date**: YouTube.com searches, newest videos first
+ - **youtube:search_url**: YouTube search URLs with sorting and filter support
  - **youtube:subscriptions**: YouTube.com subscriptions feed, "ytsubs" keyword (requires authentication)
  - **youtube:tab**: YouTube.com tab
  - **youtube:watchlater**: Youtube watch later list, ":ytwatchlater" for short (requires authentication)
