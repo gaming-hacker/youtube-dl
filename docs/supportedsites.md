@@ -66,6 +66,7 @@
  - **Arkena**
  - **arte.sky.it**
  - **ArteTV**
+ - **ArteTVCategory**
  - **ArteTVEmbed**
  - **ArteTVPlaylist**
  - **AsianCrush**
@@ -612,6 +613,10 @@
  - **nicknight**
  - **niconico**: ニコニコ動画
  - **NiconicoPlaylist**
+ - **NiconicoUser**
+ - **nicovideo:search**: Nico video search
+ - **nicovideo:search:date**: Nico video search, newest first
+ - **nicovideo:search_url**: Nico video search URLs
  - **Nintendo**
  - **njoy**: N-JOY
  - **njoy:embed**
@@ -1143,7 +1148,7 @@
  - **WatchBox**
  - **WatchIndianPorn**: Watch Indian Porn
  - **WDR**
- - **wdr:mobile**
+ - **wdr:mobile** (Currently broken)
  - **WDRElefant**
  - **WDRPage**
  - **Webcaster**
