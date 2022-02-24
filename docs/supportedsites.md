@@ -201,6 +201,8 @@
  - **CONtv**
  - **Corus**
  - **Coub**
+ - **cpac**
+ - **cpac:playlist**
  - **Cracked**
  - **Crackle**
  - **CrooksAndLiars**
