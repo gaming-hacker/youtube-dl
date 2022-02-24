@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 import operator
 import re
+from collections import Counter
 
 from .utils import (
     ExtractorError,
@@ -19,6 +20,7 @@ class Nonlocal:
     pass
 
 
+# tightest first
 _OPERATORS = [
     ('|', operator.or_),
     ('^', operator.xor),
@@ -31,22 +33,27 @@ _OPERATORS = [
     ('/', operator.truediv),
     ('*', operator.mul),
 ]
-_ASSIGN_OPERATORS = [(op + '=', opfunc) for op, opfunc in _OPERATORS]
-_ASSIGN_OPERATORS.append(('=', (lambda cur, right: right)))
+_ASSIGN_OPERATORS = dict((op + '=', opfunc) for op, opfunc in _OPERATORS)
+_ASSIGN_OPERATORS['='] = lambda cur, right: right
 
 _NAME_RE = r'[a-zA-Z_$][a-zA-Z_$0-9]*'
 
 _MATCHING_PARENS = dict(zip(*zip('()', '{}', '[]')))
 
 
-class JS_Break(ExtractorError):
-    def __init__(self):
-        ExtractorError.__init__(self, 'Invalid break')
+class JSError(ExtractorError):
+    def __init__(self, msg):
+        super(JSError, self).__init__('JS: ' + msg)
 
 
-class JS_Continue(ExtractorError):
+class JS_Break(JSError):
     def __init__(self):
-        ExtractorError.__init__(self, 'Invalid continue')
+        super(JS_Break, self).__init__('Invalid break')
+
+
+class JS_Continue(JSError):
+    def __init__(self):
+        super(JS_Continue, self).__init__('Invalid continue')
 
 
 class LocalNameSpace(MutableMapping):
@@ -84,6 +91,28 @@ class LocalNameSpace(MutableMapping):
 
 
 class JSInterpreter(object):
+    _EXPR_SPLIT_RE = (
+        r'''(?x)
+            (?P<pre_sign>\+\+|--)(?P<var1>%(_NAME_RE)s)|
+            (?P<var2>%(_NAME_RE)s)(?P<post_sign>\+\+|--)'''
+        % {'_NAME_RE': _NAME_RE, })
+    _VARNAME_RE = r'(?!if|return|true|false|null)(?P<name>%s)$' % _NAME_RE
+    _ARRAY_REF_RE = r'(?P<in>%s)\[(?P<idx>.+)\]$' % _NAME_RE
+    _FN_CALL_RE = r'^(?P<func>%s)\((?P<args>[a-zA-Z0-9_$,]*)\)$' % _NAME_RE
+    _MEMBER_REF_RE = (
+        r'(?P<var>%s)(?:\.(?P<member>[^(]+)|\[(?P<member2>[^]]+)\])\s*'
+        % _NAME_RE)
+    _FN_NAME_RE = r'''(?:[a-zA-Z$0-9]+|"[a-zA-Z$0-9]+"|'[a-zA-Z$0-9]+')'''
+    _FN_DEF_RE = (
+        r'(?P<key>%s)\s*:\s*function\s*\((?P<args>[a-z,]+)\){(?P<code>[^}]+)}'
+        % _FN_NAME_RE)
+    _ASSIGN_EXPR_RE = (
+        r'''(?x)
+            (?P<out>%s)(?:\[(?P<index>[^\]]+?)\])?
+            \s*(?P<op>%s)
+            (?P<expr>.*)$'''
+        % (_NAME_RE, '|'.join(re.escape(op) for op in _ASSIGN_OPERATORS.keys())))
+
     def __init__(self, code, objects=None):
         if objects is None:
             objects = {}
@@ -102,7 +131,7 @@ class JSInterpreter(object):
     def _separate(expr, delim=',', max_split=None):
         if not expr:
             return
-        counters = {k: 0 for k in _MATCHING_PARENS.values()}
+        counters = Counter()
         start, splits, pos, delim_len = 0, 0, 0, len(delim) - 1
         for idx, char in enumerate(expr):
             if char in _MATCHING_PARENS:
@@ -124,14 +153,15 @@ class JSInterpreter(object):
 
     @staticmethod
     def _separate_at_paren(expr, delim):
-        separated = list(JSInterpreter._separate(expr, delim, 1))
-        if len(separated) < 2:
-            raise ExtractorError('No terminating paren {0} in {1}'.format(delim, expr))
-        return separated[0][1:].strip(), separated[1].strip()
+        separated = JSInterpreter._separate(expr, delim, 1)
+        try:
+            return next(separated)[1:].strip(), next(separated).strip()
+        except (StopIteration, TypeError):
+            raise JSError('No terminating paren {0} in {1}'.format(delim, expr))
 
     def interpret_statement(self, stmt, local_vars, allow_recursion=100):
         if allow_recursion < 0:
-            raise ExtractorError('Recursion limit reached')
+            raise JSError('Recursion limit reached')
 
         sub_statements = list(self._separate(stmt, ';'))
         stmt = (sub_statements or ['']).pop()
@@ -187,7 +217,7 @@ class JSInterpreter(object):
 
         m = re.match(r'try\s*', expr)
         if m:
-            if expr[m.end()] == '{':
+            if m.end() < len(expr) and expr[m.end()] == '{':
                 try_expr, expr = self._separate_at_paren(expr[m.end():], '}')
             else:
                 try_expr, expr = expr[m.end() - 1:], ''
@@ -205,7 +235,7 @@ class JSInterpreter(object):
 
         elif md.get('for'):
             def raise_constructor_error(c):
-                raise ExtractorError(
+                raise JSError(
                     'Premature return in the initialization of a for loop in {0!r}'.format(c))
 
             constructor, remaining = self._separate_at_paren(expr[m.end() - 1:], ')')
@@ -269,9 +299,7 @@ class JSInterpreter(object):
         for sub_expr in sub_expressions:
             self.interpret_expression(sub_expr, local_vars, allow_recursion)
 
-        for m in re.finditer(r'''(?x)
-                (?P<pre_sign>\+\+|--)(?P<var1>%(_NAME_RE)s)|
-                (?P<var2>%(_NAME_RE)s)(?P<post_sign>\+\+|--)''' % globals(), expr):
+        for m in re.finditer(self._EXPR_SPLIT_RE, expr):
             var = m.group('var1') or m.group('var2')
             start, end = m.span()
             sign = m.group('pre_sign') or m.group('post_sign')
@@ -281,20 +309,17 @@ class JSInterpreter(object):
                 ret = local_vars[var]
             expr = expr[:start] + json.dumps(ret) + expr[end:]
 
-        for op, opfunc in _ASSIGN_OPERATORS:
-            m = re.match(r'''(?x)
-                (?P<out>%s)(?:\[(?P<index>[^\]]+?)\])?
-                \s*%s
-                (?P<expr>.*)$''' % (_NAME_RE, re.escape(op)), expr)
-            if not m:
-                continue
+        m = re.match(self._ASSIGN_EXPR_RE, expr)
+        if m:
+            op = m.group('op')
+            opfunc = _ASSIGN_OPERATORS[op]
             right_val = self.interpret_expression(m.group('expr'), local_vars, allow_recursion)
 
             if m.groupdict().get('index'):
                 lvar = local_vars[m.group('out')]
                 idx = self.interpret_expression(m.group('index'), local_vars, allow_recursion)
                 if not isinstance(idx, int):
-                    raise ExtractorError('List indices must be integers: %s' % (idx, ))
+                    raise JSError('List indices must be integers: %s' % (idx, ))
                 cur = lvar[idx]
                 val = opfunc(cur, right_val)
                 lvar[idx] = val
@@ -313,9 +338,7 @@ class JSInterpreter(object):
         elif expr == 'continue':
             raise JS_Continue()
 
-        var_m = re.match(
-            r'(?!if|return|true|false|null)(?P<name>%s)$' % _NAME_RE,
-            expr)
+        var_m = re.match(self._VARNAME_RE, expr)
         if var_m:
             return local_vars[var_m.group('name')]
 
@@ -324,15 +347,14 @@ class JSInterpreter(object):
         except ValueError:
             pass
 
-        m = re.match(
-            r'(?P<in>%s)\[(?P<idx>.+)\]$' % _NAME_RE, expr)
+        m = re.match(self._ARRAY_REF_RE, expr)
         if m:
             val = local_vars[m.group('in')]
             idx = self.interpret_expression(m.group('idx'), local_vars, allow_recursion)
             return val[idx]
 
         def raise_expr_error(where, op, exp):
-            raise ExtractorError('Premature {0} return of {1} in {2!r}'.format(where, op, exp))
+            raise JSError('Premature {0} return of {1} in {2!r}'.format(where, op, exp))
 
         for op, opfunc in _OPERATORS:
             separated = list(self._separate(expr, op))
@@ -350,9 +372,7 @@ class JSInterpreter(object):
                 raise_expr_error('right-side', op, expr)
             return opfunc(left_val or 0, right_val)
 
-        m = re.match(
-            r'(?P<var>%s)(?:\.(?P<member>[^(]+)|\[(?P<member2>[^]]+)\])\s*' % _NAME_RE,
-            expr)
+        m = re.match(self._MEMBER_REF_RE, expr)
         if m:
             variable = m.group('var')
             nl = Nonlocal()
@@ -469,7 +489,7 @@ class JSInterpreter(object):
             else:
                 return eval_method()
 
-        m = re.match(r'^(?P<func>%s)\((?P<args>[a-zA-Z0-9_$,]*)\)$' % _NAME_RE, expr)
+        m = re.match(self._FN_CALL_RE, expr)
         if m:
             fname = m.group('func')
             argvals = tuple([
@@ -485,22 +505,17 @@ class JSInterpreter(object):
             raise ExtractorError('Unsupported JS expression %r' % expr)
 
     def extract_object(self, objname):
-        _FUNC_NAME_RE = r'''(?:[a-zA-Z$0-9]+|"[a-zA-Z$0-9]+"|'[a-zA-Z$0-9]+')'''
         obj = {}
         obj_m = re.search(
             r'''(?x)
                 (?<!this\.)%s\s*=\s*{\s*
                     (?P<fields>(%s\s*:\s*function\s*\(.*?\)\s*{.*?}(?:,\s*)?)*)
                 }\s*;
-            ''' % (re.escape(objname), _FUNC_NAME_RE),
+            ''' % (re.escape(objname), self._FN_NAME_RE),
             self.code)
         fields = obj_m.group('fields')
         # Currently, it only supports function definitions
-        fields_m = re.finditer(
-            r'''(?x)
-                (?P<key>%s)\s*:\s*function\s*\((?P<args>[a-z,]+)\){(?P<code>[^}]+)}
-            ''' % _FUNC_NAME_RE,
-            fields)
+        fields_m = re.finditer(self._FN_DEF_RE, fields)
         for f in fields_m:
             argnames = f.group('args').split(',')
             obj[remove_quotes(f.group('key'))] = self.build_function(argnames, f.group('code'))
@@ -550,7 +565,7 @@ class JSInterpreter(object):
             local_vars.update(dict(zip(argnames, args)))
             local_vars.update(kwargs)
             var_stack = LocalNameSpace(local_vars, *global_stack)
-            for stmt in self._separate(code.replace('\n', ''), ';'):
+            for stmt in self._separate(code.replace('\n', ''), ';') or []:
                 ret, should_abort = self.interpret_statement(stmt, var_stack)
                 if should_abort:
                     break
