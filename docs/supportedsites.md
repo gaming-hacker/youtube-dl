@@ -43,6 +43,8 @@
  - **AlJazeera**
  - **Allocine**
  - **AlphaPorno**
+ - **Alsace20TV**
+ - **Alsace20TVEmbed**
  - **Amara**
  - **AMCNetworks**
  - **AmericasTestKitchen**
@@ -108,6 +110,7 @@
  - **bfmtv:live**
  - **BibelTV**
  - **Bigflix**
+ - **Bigo**
  - **Bild**: Bild.de
  - **BiliBili**
  - **BilibiliAudio**
