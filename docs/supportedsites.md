@@ -948,6 +948,7 @@
  - **Telecinco**: telecinco.es, cuatro.com and mediaset.es
  - **Telegraaf**
  - **TeleMB**
+ - **Teleportal**
  - **TeleQuebec**
  - **TeleQuebecEmission**
  - **TeleQuebecLive**
