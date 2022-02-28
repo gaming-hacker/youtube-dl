@@ -297,6 +297,7 @@
  - **fc2**
  - **fc2:embed**
  - **Fczenit**
+ - **Filmarkivet.se**
  - **filmon**
  - **filmon:channel**
  - **Filmweb**
