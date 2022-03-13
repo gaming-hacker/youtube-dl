@@ -170,7 +170,6 @@
  - **CCTV**: 央视网
  - **CDA**
  - **CeskaTelevize**
- - **CeskaTelevizePorady**
  - **channel9**: Channel 9
  - **CharlieRose**
  - **Chaturbate**
@@ -1235,7 +1234,7 @@
  - **ZDF**
  - **ZDFChannel**
  - **Zhihu**
- - **zingmp3**: mp3.zing.vn
+ - **zingmp3**: zingmp3.vn
  - **zingmp3:album**
  - **zoom**
  - **Zype**

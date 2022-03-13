@@ -300,6 +300,10 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     -s, --simulate                       Do not download the video and do not
                                          write anything to disk
     --skip-download                      Do not download the video
+    -O, --print TEMPLATE                 Simulate, quiet but print the given
+                                         fields. Either a field name or similar
+                                         formatting as the output template can
+                                         be used
     -g, --get-url                        Simulate, quiet but print URL
     -e, --get-title                      Simulate, quiet but print title
     --get-id                             Simulate, quiet but print id
@@ -310,9 +314,6 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     --get-filename                       Simulate, quiet but print output
                                          filename
     --get-format                         Simulate, quiet but print output format
-    -O, --print TEMPLATE                 Simulate, quiet but print the given fields.
-                                         Either a field name or similar formatting
-                                         as the output template can be used
     -j, --dump-json                      Simulate, quiet but print JSON
                                          information. See the "OUTPUT TEMPLATE"
                                          for a description of available keys.
