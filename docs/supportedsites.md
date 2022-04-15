@@ -805,9 +805,9 @@
  - **rtl2:you:series**
  - **RTP**
  - **RTS**: RTS.ch
- - **rtve.es:alacarta**: RTVE a la carta
  - **rtve.es:infantil**: RTVE infantil
  - **rtve.es:live**: RTVE.es live streams
+ - **rtve.es:play**: RTVE Play
  - **rtve.es:television**
  - **RTVNH**
  - **RTVS**
@@ -912,6 +912,8 @@
  - **streamcloud.eu**
  - **StreamCZ**
  - **StreamFF**
+ - **Streamgg**
+ - **Streamwo**
  - **StreetVoice**
  - **StretchInternet**
  - **stv:player**
