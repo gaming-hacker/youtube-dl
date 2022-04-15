@@ -9,7 +9,9 @@ import sys
 from .common import InfoExtractor
 from ..compat import (
     compat_b64decode,
+    compat_parse_qs,
     compat_struct_unpack,
+    compat_urllib_parse_urlparse,
 )
 from ..utils import (
     determine_ext,
@@ -25,12 +27,34 @@ _bytes_to_chr = (lambda x: x) if sys.version_info[0] == 2 else (lambda x: map(ch
 
 
 class RTVEALaCartaIE(InfoExtractor):
-    IE_NAME = 'rtve.es:alacarta'
-    IE_DESC = 'RTVE a la carta'
-    _VALID_URL = r'https?://(?:www\.)?rtve\.es/(m/)?(alacarta/videos|filmoteca)/[^/]+/[^/]+/(?P<id>\d+)'
+    IE_NAME = 'rtve.es:play'
+    IE_DESC = 'RTVE Play'
+    _VALID_URL = r'https?://(?:www\.)?rtve\.es/(m/)?((alacarta|playz?)/videos|filmoteca)/[^/]+/[^/]+/(?P<id>\d+)'
 
     _TESTS = [{
         'url': 'http://www.rtve.es/alacarta/videos/balonmano/o-swiss-cup-masculina-final-espana-suecia/2491869/',
+        'md5': '1d49b7e1ca7a7502c56a4bf1b60f1b43',
+        'info_dict': {
+            'id': '2491869',
+            'ext': 'mp4',
+            'title': 'Balonmano - Swiss Cup masculina. Final: España-Suecia',
+            'duration': 5024.566,
+            'series': 'Balonmano',
+        },
+        'expected_warnings': ['Failed to download MPD manifest', 'Failed to download m3u8 information'],
+    }, {
+        'url': 'http://www.rtve.es/play/videos/balonmano/o-swiss-cup-masculina-final-espana-suecia/2491869/',
+        'md5': '1d49b7e1ca7a7502c56a4bf1b60f1b43',
+        'info_dict': {
+            'id': '2491869',
+            'ext': 'mp4',
+            'title': 'Balonmano - Swiss Cup masculina. Final: España-Suecia',
+            'duration': 5024.566,
+            'series': 'Balonmano',
+        },
+        'expected_warnings': ['Failed to download MPD manifest', 'Failed to download m3u8 information'],
+    }, {
+        'url': 'http://www.rtve.es/playz/videos/balonmano/o-swiss-cup-masculina-final-espana-suecia/2491869/',
         'md5': '1d49b7e1ca7a7502c56a4bf1b60f1b43',
         'info_dict': {
             'id': '2491869',
@@ -68,6 +92,12 @@ class RTVEALaCartaIE(InfoExtractor):
     }, {
         'url': 'http://www.rtve.es/filmoteca/no-do/not-1-introduccion-primer-noticiario-espanol/1465256/',
         'only_matching': True,
+    }, {
+        'url': 'https://www.rtve.es/play/videos/modulos/capitulos/11332/?currentpage=pf_serie',
+        'info_dict': {
+            'id': '11332',
+        },
+        'playlist_mincount': 20,
     }]
 
     def _real_initialize(self):
@@ -142,8 +172,21 @@ class RTVEALaCartaIE(InfoExtractor):
         self._sort_formats(formats)
         return formats
 
+    def _extract_playlist(self, url, playlist_id):
+
+        webpage = self._download_webpage(url, playlist_id)
+
+        matches = re.findall(r'''<a\b[^>]*\bhref\s*=\s*["'](%s)''' % (self._VALID_URL, ), webpage)
+
+        return self.playlist_from_matches(matches, playlist_id=playlist_id, getter=lambda x: x[0], ie=self.ie_key())
+
     def _real_extract(self, url):
         video_id = self._match_id(url)
+
+        qs = compat_parse_qs(compat_urllib_parse_urlparse(url).query)
+        if 'pf_serie' == qs.get('currentpage', [None])[-1]:
+            return self._extract_playlist(url, video_id)
+
         info = self._download_json(
             'http://www.rtve.es/api/videos/%s/config/alacarta_videos.json' % video_id,
             video_id)['page']['items'][0]
