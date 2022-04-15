@@ -1194,6 +1194,8 @@ from .streamcloud import StreamcloudIE
 from .streamcz import StreamCZIE
 from .streamff import StreamFFIE
 from .streetvoice import StreetVoiceIE
+from .streamgg import StreamggIE
+from .streamwo import StreamwoIE
 from .stretchinternet import StretchInternetIE
 from .stv import STVPlayerIE
 from .sunporno import SunPornoIE
