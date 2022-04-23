@@ -248,6 +248,8 @@
  - **dlive:stream**
  - **dlive:vod**
  - **Dotsub**
+ - **DouyinUser**
+ - **DouyinVideo**
  - **DouyuShow**
  - **DouyuTV**: 斗鱼
  - **DPlay**
