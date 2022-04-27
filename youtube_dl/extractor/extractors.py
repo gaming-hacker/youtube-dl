@@ -1278,6 +1278,7 @@ from .threeqsdn import ThreeQSDNIE
 from .tiktok import (
     TikTokIE,
     TikTokUserIE,
+    TikTokVMIE,
 )
 from .tinypic import TinyPicIE
 from .tmz import (
