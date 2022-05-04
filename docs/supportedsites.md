@@ -203,6 +203,7 @@
  - **CONtv**
  - **Corus**
  - **Coub**
+ - **CozyTVReplay**
  - **cpac**
  - **cpac:playlist**
  - **Cracked**
@@ -440,6 +441,7 @@
  - **KinoPoisk**
  - **KonserthusetPlay**
  - **KrasView**: Красвью
+ - **KTH**
  - **Ku6**
  - **KUSI**
  - **kuwo:album**: 酷我音乐 - 专辑
@@ -935,6 +937,8 @@
  - **t-online.de**
  - **Tagesschau**
  - **tagesschau:player**
+ - **talk.tv**: TalkTV UK catch-up and live shows
+ - **talk.tv:series**: TalkTV UK series catch-up
  - **Tass**
  - **TBS**
  - **TDSLifeway**
@@ -976,8 +980,9 @@
  - **ThisAmericanLife**
  - **ThisAV**
  - **ThisOldHouse**
- - **TikTok**
- - **TikTokUser** (Currently broken)
+ - **tiktok**: TikTok video extractor
+ - **tiktok:shortcut**: Resolver for TikTok shortcuts
+ - **tiktok:user**: TikTok user profile extractor
  - **tinypic**: tinypic.com videos
  - **TMZ**
  - **TMZArticle**
