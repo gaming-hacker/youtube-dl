@@ -244,6 +244,7 @@ from .cnn import (
     CNNArticleIE,
 )
 from .coub import CoubIE
+from .cozytv import CozyTVReplayIE
 from .comedycentral import (
     ComedyCentralIE,
     ComedyCentralTVIE,
