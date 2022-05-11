@@ -81,7 +81,6 @@ from ..utils import (
     xpath_element,
     xpath_text,
     xpath_with_ns,
-    get_referrer_url
 )
 
 
@@ -1229,6 +1228,10 @@ class InfoExtractor(object):
         if isinstance(json_ld, dict):
             json_ld = [json_ld]
 
+        def valued_dict(items):
+            """Return dict from dict or iterable of pairs omitting None values"""
+            return dict((k, v) for k, v in (items.items() if isinstance(items, dict) else items) if v is not None)
+
         INTERACTION_TYPE_MAP = {
             'CommentAction': 'comment',
             'AgreeAction': 'like',
@@ -1274,21 +1277,9 @@ class InfoExtractor(object):
                     continue
                 info[count_key] = interaction_count
 
-        def extract_author(e):
-            author = e.get('author')
-            if not author:
-                return
-            info.update({
-                # author can be an instance of 'Organization' or 'Person' types.
-                # both types can have 'name' property(inherited from 'Thing' type). [1]
-                # however some websites are using 'Text' type instead.
-                # 1. https://schema.org/VideoObject
-                'uploader': author.get('name') if isinstance(author, dict) else author if isinstance(author, compat_str) else None,
-            })
-
         def extract_video_object(e):
             assert e['@type'] == 'VideoObject'
-            extract_author(e)
+            author = e.get('author')
             info.update({
                 'url': url_or_none(e.get('contentUrl')),
                 'title': unescapeHTML(e.get('name')),
@@ -1296,6 +1287,11 @@ class InfoExtractor(object):
                 'thumbnail': url_or_none(e.get('thumbnailUrl') or e.get('thumbnailURL')),
                 'duration': parse_duration(e.get('duration')),
                 'timestamp': unified_timestamp(e.get('uploadDate')),
+                # author can be an instance of 'Organization' or 'Person' types.
+                # both types can have 'name' property(inherited from 'Thing' type). [1]
+                # however some websites are using 'Text' type instead.
+                # 1. https://schema.org/VideoObject
+                'uploader': author.get('name') if isinstance(author, dict) else author if isinstance(author, compat_str) else None,
                 'filesize': float_or_none(e.get('contentSize')),
                 'tbr': int_or_none(e.get('bitrate')),
                 'width': int_or_none(e.get('width')),
@@ -1327,21 +1323,25 @@ class InfoExtractor(object):
                     part_of_series = e.get('partOfSeries') or e.get('partOfTVSeries')
                     if isinstance(part_of_series, dict) and part_of_series.get('@type') in ('TVSeries', 'Series', 'CreativeWorkSeries'):
                         info['series'] = unescapeHTML(part_of_series.get('name'))
-                elif item_type == 'Movie':
+                elif item_type in ('TVSeries', 'Series', 'CreativeWorkSeries'):
+                    series_name = unescapeHTML(e.get('name'))
                     info.update({
+                        'series': series_name,
+                    })
+                elif item_type == 'Movie':
+                    # here and in the next, don't erase existing value with None
+                    info.update(valued_dict({
                         'title': unescapeHTML(e.get('name')),
                         'description': unescapeHTML(e.get('description')),
                         'duration': parse_duration(e.get('duration')),
                         'timestamp': unified_timestamp(e.get('dateCreated')),
-                    })
+                    }))
                 elif item_type in ('Article', 'NewsArticle'):
-                    info.update({
+                    info.update(valued_dict({
                         'timestamp': parse_iso8601(e.get('datePublished')),
                         'title': unescapeHTML(e.get('headline')),
                         'description': unescapeHTML(e.get('articleBody')),
-                    })
-                elif item_type == 'SocialMediaPosting':
-                    extract_author(e)
+                    }))
                 elif item_type == 'VideoObject':
                     extract_video_object(e)
                     if expected_type is None:
@@ -1355,7 +1355,7 @@ class InfoExtractor(object):
                     continue
                 else:
                     break
-        return dict((k, v) for k, v in info.items() if v is not None)
+        return valued_dict(info)
 
     @staticmethod
     def _hidden_inputs(html):
@@ -2504,10 +2504,6 @@ class InfoExtractor(object):
                 return f
             return {}
 
-        def get_referrer_policy_from_meta_element(page):
-            policy = self._html_search_meta('referrer', page)
-            return policy if policy is not None else "strict-origin-when-cross-origin"
-
         def _media_formats(src, cur_media_type, type_info={}):
             full_url = absolute_url(src)
             ext = type_info.get('ext') or determine_ext(full_url)
@@ -2530,7 +2526,6 @@ class InfoExtractor(object):
             return is_plain_url, formats
 
         entries = []
-        referrer_policy = get_referrer_policy_from_meta_element(webpage)
         # amp-video and amp-audio are very similar to their HTML5 counterparts
         # so we wll include them right here (see
         # https://www.ampproject.org/docs/reference/components/amp-video)
@@ -2612,9 +2607,7 @@ class InfoExtractor(object):
                             'url': absolute_url(src),
                         })
             for f in media_info['formats']:
-                referrer = get_referrer_url(base_url, f["url"], referrer_policy)
-                if referrer:
-                    f.setdefault('http_headers', {})['Referer'] = referrer
+                f.setdefault('http_headers', {})['Referer'] = base_url
             if media_info['formats'] or media_info['subtitles']:
                 entries.append(media_info)
         return entries
