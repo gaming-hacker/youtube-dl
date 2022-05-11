@@ -144,6 +144,8 @@
  - **CamdemyFolder**
  - **CamModels**
  - **CamTube**
+ - **camwhoresbay:model**
+ - **camwhoresbay:video**
  - **CamWithHer**
  - **canalc2.tv**
  - **Canalplus**: mycanal.fr and piwiplus.fr
@@ -559,6 +561,7 @@
  - **mtvservices:embedded**
  - **MTVUutisetArticle**
  - **MuenchenTV**: münchen.tv
+ - **MujRozhlas**
  - **mva**: Microsoft Virtual Academy videos
  - **mva:course**: Microsoft Virtual Academy courses
  - **Mwave**
@@ -997,6 +1000,8 @@
  - **Trilulilu**
  - **Trovo**
  - **TrovoVod**
+ - **TRT**: TRT (Turkish State TV) programs and series
+ - **TRTLive**: TRT (Turkish State TV and radio) live channels
  - **TruNews**
  - **TruTV**
  - **Tube8**
