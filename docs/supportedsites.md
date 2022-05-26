@@ -516,6 +516,7 @@
  - **MediasiteCatalog**
  - **MediasiteNamedCatalog**
  - **Medici**
+ - **MegaCartoons**
  - **megaphone.fm**: megaphone.fm embedded players
  - **Meipai**: 美拍
  - **MelonVOD**
