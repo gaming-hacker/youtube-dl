@@ -494,7 +494,8 @@
  - **lynda**: lynda.com videos
  - **lynda:course**: lynda.com online courses
  - **m6**
- - **MacProVideo.com**
+ - **MacProVideo**
+ - **MacProVideoCourse**
  - **mailru**: Видео@Mail.Ru
  - **mailru:music**: Музыка@Mail.Ru
  - **mailru:music:search**: Музыка@Mail.Ru
