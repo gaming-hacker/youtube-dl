@@ -642,6 +642,10 @@ from .lynda import (
     LyndaCourseIE
 )
 from .m6 import M6IE
+from .macprovideo import (
+    MacProVideoIE,
+    MacProVideoCourseIE
+)
 from .mailru import (
     MailRuIE,
     MailRuMusicIE,
