@@ -881,6 +881,7 @@
  - **SonyLIV**
  - **soundcloud**
  - **soundcloud:playlist**
+ - **soundcloud:related**
  - **soundcloud:search**: Soundcloud search
  - **soundcloud:set**
  - **soundcloud:trackstation**
