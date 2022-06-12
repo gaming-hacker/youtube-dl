@@ -121,6 +121,7 @@
  - **BIQLE**
  - **BitChute**
  - **BitChuteChannel**
+ - **BitChutePlaylist**
  - **BleacherReport**
  - **BleacherReportCMS**
  - **Bloomberg**
@@ -250,6 +251,7 @@
  - **Disney**
  - **dlive:stream**
  - **dlive:vod**
+ - **DoodStream**
  - **Dotsub**
  - **DouyinUser**
  - **DouyinVideo**
@@ -385,6 +387,7 @@
  - **hotstar:playlist**
  - **Howcast**
  - **HowStuffWorks**
+ - **hrfernsehen**
  - **HRTi**
  - **HRTiPlaylist**
  - **Huajiao**: 花椒直播
@@ -897,6 +900,7 @@
  - **southpark.nl**
  - **southparkstudios.dk**
  - **SpankBang**
+ - **SpankBangList**
  - **SpankBangPlaylist**
  - **Spankwire**
  - **Spiegel**
