@@ -70,6 +70,7 @@ from ..utils import (
     str_or_none,
     str_to_int,
     strip_or_none,
+    try_get,
     unescapeHTML,
     unified_strdate,
     unified_timestamp,
@@ -2723,7 +2724,7 @@ class InfoExtractor(object):
 
     def _find_jwplayer_data(self, webpage, video_id=None, transform_source=js_to_json):
         mobj = re.search(
-            r'(?s)jwplayer\((?P<quote>[\'"])[^\'" ]+(?P=quote)\)(?!</script>).*?\.setup\s*\((?P<options>[^)]+)\)',
+            r'''(?s)jwplayer\s*\(\s*(?P<q>'|")(?!(?P=q)).+(?P=q)\s*\)(?!</script>).*?\.\s*setup\s*\(\s*(?P<options>[^)]+)\s*\)''',
             webpage)
         if mobj:
             try:
@@ -2744,6 +2745,10 @@ class InfoExtractor(object):
 
     def _parse_jwplayer_data(self, jwplayer_data, video_id=None, require_title=True,
                              m3u8_id=None, mpd_id=None, rtmp_params=None, base_url=None):
+        if try_get(jwplayer_data, lambda x: x.get('playlist') or True) is None:
+            # not a dict
+            return {}
+
         # JWPlayer backward compatibility: flattened playlists
         # https://github.com/jwplayer/jwplayer/blob/v7.4.3/src/js/api/config.js#L81-L96
         if 'playlist' not in jwplayer_data:
@@ -2824,11 +2829,11 @@ class InfoExtractor(object):
             urls.append(source_url)
             source_type = source.get('type') or ''
             ext = mimetype2ext(source_type) or determine_ext(source_url)
-            if source_type == 'hls' or ext == 'm3u8':
+            if source_type == 'hls' or ext == 'm3u8' or 'format=m3u8-aapl' in source_url:
                 formats.extend(self._extract_m3u8_formats(
                     source_url, video_id, 'mp4', entry_protocol='m3u8_native',
                     m3u8_id=m3u8_id, fatal=False))
-            elif source_type == 'dash' or ext == 'mpd':
+            elif source_type == 'dash' or ext == 'mpd' or 'format=mpd-time-csf' in source_url:
                 formats.extend(self._extract_mpd_formats(
                     source_url, video_id, mpd_id=mpd_id, fatal=False))
             elif ext == 'smil':
@@ -2843,12 +2848,13 @@ class InfoExtractor(object):
                     'ext': ext,
                 })
             else:
+                format_id = str_or_none(source.get('label'))
                 height = int_or_none(source.get('height'))
-                if height is None:
+                if height is None and format_id:
                     # Often no height is provided but there is a label in
                     # format like "1080p", "720p SD", or 1080.
                     height = int_or_none(self._search_regex(
-                        r'^(\d{3,4})[pP]?(?:\b|$)', compat_str(source.get('label') or ''),
+                        r'^(\d{3,4})[pP]?(?:\b|$)', format_id,
                         'height', default=None))
                 a_format = {
                     'url': source_url,
@@ -2857,6 +2863,9 @@ class InfoExtractor(object):
                     'tbr': int_or_none(source.get('bitrate')),
                     'ext': ext,
                 }
+                if format_id:
+                    a_format['format_id'] = format_id
+
                 if source_url.startswith('rtmp'):
                     a_format['ext'] = 'flv'
                     # See com/longtailvideo/jwplayer/media/RTMPMediaProvider.as
