@@ -1295,6 +1295,11 @@ from .theweatherchannel import TheWeatherChannelIE
 from .thisamericanlife import ThisAmericanLifeIE
 from .thisav import ThisAVIE
 from .thisoldhouse import ThisOldHouseIE
+from .thisvid import (
+    ThisVidIE,
+    ThisVidMemberIE,
+    ThisVidPlaylistIE,
+)
 from .threeqsdn import ThreeQSDNIE
 from .tiktok import (
     TikTokIE,
