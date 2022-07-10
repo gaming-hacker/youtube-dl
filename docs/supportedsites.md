@@ -489,6 +489,7 @@
  - **LiveJournal**
  - **livestream**
  - **livestream:original**
+ - **Livestreamfails**
  - **LnkGo**
  - **loc**: Library of Congress
  - **LocalNews8**
@@ -991,6 +992,9 @@
  - **ThisAmericanLife**
  - **ThisAV**
  - **ThisOldHouse**
+ - **ThisVid**
+ - **ThisVidMember**
+ - **ThisVidPlaylist**
  - **tiktok**: TikTok video extractor
  - **tiktok:shortcut**: Resolver for TikTok shortcuts
  - **tiktok:user**: TikTok user profile extractor

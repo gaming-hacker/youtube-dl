@@ -142,9 +142,11 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                          download the videos at index 1, 2, 3,
                                          7, 10, 11, 12 and 13.
     --match-title REGEX                  Download only matching titles (case-
-                                         insensitive regex or sub-string)
+                                         insensitive regex or alphanumeric sub-
+                                         string)
     --reject-title REGEX                 Skip download for matching titles
-                                         (case-insensitive regex or sub-string)
+                                         (case-insensitive regex or alphanumeric
+                                         sub-string)
     --max-downloads NUMBER               Abort after downloading NUMBER files
     --min-filesize SIZE                  Do not download any videos smaller than
                                          SIZE (e.g. 50k or 44.6m)
