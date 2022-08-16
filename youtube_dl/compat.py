@@ -2988,7 +2988,6 @@ except ImportError:
     except ImportError:
         compat_filter = filter
 
-
 try:
     from future_builtins import zip as compat_zip
 except ImportError:  # not 2.6+ or is 3.x
@@ -2996,6 +2995,57 @@ except ImportError:  # not 2.6+ or is 3.x
         from itertools import izip as compat_zip  # < 2.5 or 3.x
     except ImportError:
         compat_zip = zip
+
+
+# method renamed between Py2/3
+try:
+    from itertools import zip_longest as compat_itertools_zip_longest
+except ImportError:
+    from itertools import izip_longest as compat_itertools_zip_longest
+
+
+# new class in collections
+try:
+    from collections import ChainMap as compat_collections_chain_map
+except ImportError:
+    # Py < 3.3
+    class compat_collections_chain_map(compat_collections_abc.MutableMapping):
+
+        maps = [{}]
+
+        def __init__(self, *maps):
+            self.maps = list(maps) or [{}]
+
+        def __getitem__(self, k):
+            for m in self.maps:
+                if k in m:
+                    return m[k]
+            raise KeyError(k)
+
+        def __setitem__(self, k, v):
+            self.maps[0].__setitem__(k, v)
+            return
+
+        def __delitem__(self, k):
+            if k in self.maps[0]:
+                del self.maps[0][k]
+                return
+            raise KeyError(k)
+
+        def __iter__(self):
+            return itertools.chain(*reversed(self.maps))
+
+        def __len__(self):
+            return len(iter(self))
+
+        def new_child(self, m=None, **kwargs):
+            m = m or {}
+            m.update(kwargs)
+            return compat_collections_chain_map(m, *self.maps)
+
+        @property
+        def parents(self):
+            return compat_collections_chain_map(*(self.maps[1:]))
 
 
 if sys.version_info < (3, 3):
@@ -3034,6 +3084,7 @@ __all__ = [
     'compat_basestring',
     'compat_chr',
     'compat_collections_abc',
+    'compat_collections_chain_map',
     'compat_cookiejar',
     'compat_cookiejar_Cookie',
     'compat_cookies',
@@ -3054,6 +3105,7 @@ __all__ = [
     'compat_input',
     'compat_integer_types',
     'compat_itertools_count',
+    'compat_itertools_zip_longest',
     'compat_kwargs',
     'compat_map',
     'compat_numeric_types',
