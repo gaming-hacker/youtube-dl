@@ -931,6 +931,7 @@ from .paramountplus import (
      ParamountPlusIE,
      ParamountPlusSeriesIE,
 )
+from .parler import ParlerIE
 from .parliamentliveuk import ParliamentLiveUKIE
 from .patreon import PatreonIE
 from .pbs import PBSIE
