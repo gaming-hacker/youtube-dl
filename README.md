@@ -438,7 +438,8 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                          necessary (currently supported:
                                          mp4|flv|ogg|webm|mkv|avi)
     --postprocessor-args ARGS            Give these arguments to the
-                                         postprocessor
+                                         postprocessor (if postprocessing is
+                                         required)
     -k, --keep-video                     Keep the video file on disk after the
                                          post-processing; the video is erased by
                                          default

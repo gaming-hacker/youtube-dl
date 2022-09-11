@@ -90,6 +90,9 @@
  - **Bandcamp**
  - **Bandcamp:album**
  - **Bandcamp:weekly**
+ - **Bandlab**
+ - **BandlabAlbum**
+ - **BandlabPlaylist**
  - **bangumi.bilibili.com**: BiliBili番剧
  - **bbc**: BBC
  - **bbc.co.uk**: BBC iPlayer
