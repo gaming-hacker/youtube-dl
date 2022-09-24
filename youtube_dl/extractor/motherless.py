@@ -127,7 +127,7 @@ class MotherlessIE(InfoExtractor):
 
         comment_count = webpage.count('class="media-comment-contents"')
         uploader_id = self._html_search_regex(
-            r'<span class=\"username\">([^"]+)<\/span>',
+            r'"media-meta-member">\s+<a href="/m/([^"]+)"',
             webpage, 'uploader_id')
 
         categories = self._html_search_meta('keywords', webpage, default=None)
