@@ -947,6 +947,9 @@
  - **SVTPage**
  - **SVTPlay**: SVT Play and Öppet arkiv
  - **SVTSeries**
+ - **switchtube**
+ - **switchtube:channel**
+ - **switchtube:profile**
  - **SWRMediathek**
  - **Syfy**
  - **SztvHu**
