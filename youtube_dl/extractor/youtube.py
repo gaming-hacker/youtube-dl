@@ -42,6 +42,7 @@ from ..utils import (
     unescapeHTML,
     unified_strdate,
     unsmuggle_url,
+    update_url,
     update_url_query,
     url_or_none,
     urlencode_postdata,
@@ -286,15 +287,18 @@ class YoutubeBaseInfoExtractor(InfoExtractor):
     _YT_INITIAL_PLAYER_RESPONSE_RE = r'ytInitialPlayerResponse\s*=\s*({.+?})\s*;'
     _YT_INITIAL_BOUNDARY_RE = r'(?:var\s+meta|</script|\n)'
 
-    def _call_api(self, ep, query, video_id, fatal=True):
+    def _call_api(self, ep, query, video_id, fatal=True, headers=None):
         data = self._DEFAULT_API_DATA.copy()
         data.update(query)
+        real_headers = {'content-type': 'application/json'}
+        if headers:
+            real_headers.update(headers)
 
         return self._download_json(
             'https://www.youtube.com/youtubei/v1/%s' % ep, video_id=video_id,
             note='Downloading API JSON', errnote='Unable to download API page',
             data=json.dumps(data).encode('utf8'), fatal=fatal,
-            headers={'content-type': 'application/json'},
+            headers=real_headers,
             query={'key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'})
 
     def _extract_yt_initial_data(self, video_id, webpage):
@@ -457,6 +461,16 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
         r'(?:www\.)?kbjggqkzv65ivcqj6bumvp337z6264huv5kpkwuv6gu5yjiskvan7fad\.onion',
         r'(?:www\.)?grwp24hodrefzvjjuccrkw3mjq4tzhaaq32amf33dzpmuxe7ilepcmad\.onion',
         r'(?:www\.)?hpniueoejy4opn7bc4ftgazyqjoeqwlvh2uiku2xqku6zpoa4bf5ruid\.onion',
+        # piped instances from https://github.com/TeamPiped/Piped/wiki/Instances
+        r'(?:www\.)?piped\.kavin\.rocks',
+        r'(?:www\.)?piped\.silkky\.cloud',
+        r'(?:www\.)?piped\.tokhmi\.xyz',
+        r'(?:www\.)?piped\.moomoo\.me',
+        r'(?:www\.)?il\.ax',
+        r'(?:www\.)?piped\.syncpundit\.com',
+        r'(?:www\.)?piped\.mha\.fi',
+        r'(?:www\.)?piped\.mint\.lgbt',
+        r'(?:www\.)?piped\.privacy\.com\.de',
     )
     _VALID_URL = r"""(?x)^
                      (
@@ -514,6 +528,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'uploader': 'Philipp Hagemeister',
                 'uploader_id': 'phihag',
                 'uploader_url': r're:https?://(?:www\.)?youtube\.com/user/phihag',
+                'channel': 'Philipp Hagemeister',
                 'channel_id': 'UCLqxVugv74EIW3VWh2NOa3Q',
                 'channel_url': r're:https?://(?:www\.)?youtube\.com/channel/UCLqxVugv74EIW3VWh2NOa3Q',
                 'upload_date': '20121002',
@@ -523,10 +538,10 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'duration': 10,
                 'view_count': int,
                 'like_count': int,
-                'dislike_count': int,
+                'thumbnail': 'https://i.ytimg.com/vi/BaW_jenozKc/maxresdefault.jpg',
                 'start_time': 1,
                 'end_time': 9,
-            }
+            },
         },
         {
             'url': '//www.YouTube.com/watch?v=yZIXLfi8CZQ',
@@ -561,7 +576,6 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'duration': 10,
                 'view_count': int,
                 'like_count': int,
-                'dislike_count': int,
             },
             'params': {
                 'skip_download': True,
@@ -620,8 +634,9 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'description': 'SUBSCRIBE: http://www.youtube.com/saturninefilms \r\n\r\nEven Obama has taken a stand against freedom on this issue: http://www.huffingtonpost.com/2010/09/09/obama-gma-interview-quran_n_710282.html',
             }
         },
-        # Normal age-gate video (No vevo, embed allowed), available via embed page
+        # Age-gated videos
         {
+            'note': 'Age-gated video (No vevo, embed allowed)',
             'url': 'https://youtube.com/watch?v=HtVdAasjOgU',
             'info_dict': {
                 'id': 'HtVdAasjOgU',
@@ -630,17 +645,97 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                 'description': r're:(?s).{100,}About the Game\n.*?The Witcher 3: Wild Hunt.{100,}',
                 'duration': 142,
                 'uploader': 'The Witcher',
-                'uploader_id': 'WitcherGame',
-                'uploader_url': r're:https?://(?:www\.)?youtube\.com/user/WitcherGame',
                 'upload_date': '20140605',
+                'thumbnail': 'https://i.ytimg.com/vi/HtVdAasjOgU/maxresdefault.jpg',
                 'age_limit': 18,
+                'categories': ['Gaming'],
+                'tags': 'count:17',
+                'channel': 'The Witcher',
+                'channel_url': 'https://www.youtube.com/channel/UCzybXLxv08IApdjdN0mJhEg',
+                'channel_id': 'UCzybXLxv08IApdjdN0mJhEg',
+                'view_count': int,
+                'like_count': int,
             },
         },
         {
-            # Age-gated video only available with authentication (unavailable
-            # via embed page workaround)
+            'note': 'Age-gated video with embed allowed in public site',
+            'url': 'https://youtube.com/watch?v=HsUATh_Nc2U',
+            'info_dict': {
+                'id': 'HsUATh_Nc2U',
+                'ext': 'mp4',
+                'title': 'Godzilla 2 (Official Video)',
+                'description': 'md5:bf77e03fcae5529475e500129b05668a',
+                'duration': 177,
+                'uploader': 'FlyingKitty',
+                'upload_date': '20200408',
+                'thumbnail': 'https://i.ytimg.com/vi/HsUATh_Nc2U/maxresdefault.jpg',
+                'age_limit': 18,
+                'categories': ['Entertainment'],
+                'tags': ['Flyingkitty', 'godzilla 2'],
+                'channel': 'FlyingKitty',
+                'channel_url': 'https://www.youtube.com/channel/UCYQT13AtrJC0gsM1far_zJg',
+                'channel_id': 'UCYQT13AtrJC0gsM1far_zJg',
+                'view_count': int,
+                'like_count': int,
+            },
+        },
+        {
+            'note': 'Age-gated video embedable only with clientScreen=EMBED',
+            'url': 'https://youtube.com/watch?v=Tq92D6wQ1mg',
+            'info_dict': {
+                'id': 'Tq92D6wQ1mg',
+                'ext': 'mp4',
+                'title': '[MMD] Adios - EVERGLOW [+Motion DL]',
+                'description': 'md5:17eccca93a786d51bc67646756894066',
+                'duration': 106,
+                'uploader': 'Projekt Melody',
+                'upload_date': '20191227',
+                'age_limit': 18,
+                'thumbnail': 'https://i.ytimg.com/vi/Tq92D6wQ1mg/sddefault.jpg',
+                'tags': ['mmd', 'dance', 'mikumikudance', 'kpop', 'vtuber'],
+                'categories': ['Entertainment'],
+                'channel': 'Projekt Melody',
+                'channel_url': 'https://www.youtube.com/channel/UC1yoRdFoFJaCY-AGfD9W0wQ',
+                'channel_id': 'UC1yoRdFoFJaCY-AGfD9W0wQ',
+                'view_count': int,
+                'like_count': int,
+            },
+        },
+        {
+            'note': 'Non-Age-gated non-embeddable video',
+            'url': 'https://youtube.com/watch?v=MeJVWBSsPAY',
+            'info_dict': {
+                'id': 'MeJVWBSsPAY',
+                'ext': 'mp4',
+                'title': 'OOMPH! - Such Mich Find Mich (Lyrics)',
+                'description': 'Fan Video. Music & Lyrics by OOMPH!.',
+                'duration': 210,
+                'uploader': 'Herr Lurik',
+                'uploader_id': 'st3in234',
+                'upload_date': '20130730',
+                'uploader_url': 'http://www.youtube.com/user/st3in234',
+                'age_limit': 0,
+                'thumbnail': 'https://i.ytimg.com/vi/MeJVWBSsPAY/hqdefault.jpg',
+                'tags': ['oomph', 'such mich find mich', 'lyrics', 'german industrial', 'musica industrial'],
+                'categories': ['Music'],
+                'channel': 'Herr Lurik',
+                'channel_url': 'https://www.youtube.com/channel/UCdR3RSDPqub28LjZx0v9-aA',
+                'channel_id': 'UCdR3RSDPqub28LjZx0v9-aA',
+                'artist': 'OOMPH!',
+                'view_count': int,
+                'like_count': int,
+            },
+        },
+        {
+            'note': 'Non-bypassable age-gated video',
+            'url': 'https://youtube.com/watch?v=Cr381pDsSsA',
+            'only_matching': True,
+        },
+        {
+            'note': 'Age-gated video only available with authentication (not via embed workaround)',
             'url': 'XgnwCQzjau8',
             'only_matching': True,
+            'skip': '''This video has been removed for violating YouTube's Community Guidelines''',
         },
         # video_info is None (https://github.com/ytdl-org/youtube-dl/issues/4421)
         # YouTube Red ad is not captured for creator
@@ -669,17 +764,23 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             'info_dict': {
                 'id': 'lqQg6PlCWgI',
                 'ext': 'mp4',
+                'title': 'Hockey - Women -  GER-AUS - London 2012 Olympic Games',
+                'description': r're:(?s)(?:.+\s)?HO09  - Women -  GER-AUS - Hockey - 31 July 2012 - London 2012 Olympic Games\s*',
                 'duration': 6085,
                 'upload_date': '20150827',
                 'uploader_id': 'olympic',
                 'uploader_url': r're:https?://(?:www\.)?youtube\.com/user/olympic',
-                'description': 'HO09  - Women -  GER-AUS - Hockey - 31 July 2012 - London 2012 Olympic Games',
-                'uploader': 'Olympic',
-                'title': 'Hockey - Women -  GER-AUS - London 2012 Olympic Games',
+                'uploader': r're:Olympics?',
+                'age_limit': 0,
+                'thumbnail': 'https://i.ytimg.com/vi/lqQg6PlCWgI/maxresdefault.jpg',
+                'categories': ['Sports'],
+                'tags': ['Hockey', '2012-07-31', '31 July 2012', 'Riverbank Arena', 'Session', 'Olympics', 'Olympic Games', 'London 2012', '2012 Summer Olympics', 'Summer Games'],
+                'channel': 'Olympics',
+                'channel_url': 'https://www.youtube.com/channel/UCTl3QQTvqHFjurroKxexy2Q',
+                'channel_id': 'UCTl3QQTvqHFjurroKxexy2Q',
+                'view_count': int,
+                'like_count': int,
             },
-            'params': {
-                'skip_download': 'requires avconv',
-            }
         },
         # Non-square pixels
         {
@@ -1550,6 +1651,27 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             fmt['url'] = compat_urlparse.urlunparse(
                 parsed_fmt_url._replace(query=compat_urllib_parse_urlencode(qs, True)))
 
+    # from yt-dlp, with tweaks
+    def _extract_signature_timestamp(self, video_id, player_url, ytcfg=None, fatal=False):
+        """
+        Extract signatureTimestamp (sts)
+        Required to tell API what sig/player version is in use.
+        """
+        sts = int_or_none(ytcfg.get('STS')) if isinstance(ytcfg, dict) else None
+        if not sts:
+            # Attempt to extract from player
+            if player_url is None:
+                error_msg = 'Cannot extract signature timestamp without player_url.'
+                if fatal:
+                    raise ExtractorError(error_msg)
+                self._downloader.report_warning(error_msg)
+                return
+            code = self._get_player_code(video_id, player_url)
+            sts = int_or_none(self._search_regex(
+                r'(?:signatureTimestamp|sts)\s*:\s*(?P<sts>[0-9]{5})', code or '',
+                'JS player signature timestamp', group='sts', fatal=fatal))
+        return sts
+
     def _mark_watched(self, video_id, player_response):
         playback_url = url_or_none(try_get(
             player_response,
@@ -1674,6 +1796,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             webpage_url + '&bpctr=9999999999&has_verified=1', video_id, fatal=False)
 
         player_response = None
+        player_url = None
         if webpage:
             player_response = self._extract_yt_initial_variable(
                 webpage, self._YT_INITIAL_PLAYER_RESPONSE_RE,
@@ -1682,27 +1805,61 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             player_response = self._call_api(
                 'player', {'videoId': video_id}, video_id)
 
-        playability_status = player_response.get('playabilityStatus') or {}
-        if playability_status.get('reason') == 'Sign in to confirm your age':
-            video_info = self._download_webpage(
-                base_url + 'get_video_info', video_id,
-                'Refetching age-gated info webpage',
-                'unable to download video info webpage', query={
-                    'video_id': video_id,
-                    'eurl': 'https://youtube.googleapis.com/v/' + video_id,
-                    'html5': 1,
-                    # See https://github.com/ytdl-org/youtube-dl/issues/29333#issuecomment-864049544
-                    'c': 'TVHTML5',
-                    'cver': '6.20180913',
-                }, fatal=False)
-            if video_info:
-                pr = self._parse_json(
-                    try_get(
-                        compat_parse_qs(video_info),
-                        lambda x: x['player_response'][0], compat_str) or '{}',
-                    video_id, fatal=False)
-                if pr and isinstance(pr, dict):
-                    player_response = pr
+        def is_agegated(playability):
+            if not isinstance(playability, dict):
+                return
+
+            if playability.get('desktopLegacyAgeGateReason'):
+                return True
+
+            reasons = filter(None, (playability.get(r) for r in ('status', 'reason')))
+            AGE_GATE_REASONS = (
+                'confirm your age', 'age-restricted', 'inappropriate',  # reason
+                'age_verification_required', 'age_check_required',  # status
+            )
+            return any(expected in reason for expected in AGE_GATE_REASONS for reason in reasons)
+
+        def get_playability_status(response):
+            return try_get(response, lambda x: x['playabilityStatus'], dict) or {}
+
+        playability_status = get_playability_status(player_response)
+        if (is_agegated(playability_status)
+                and int_or_none(self._downloader.params.get('age_limit'), default=18) >= 18):
+
+            self.report_age_confirmation()
+
+            # Thanks: https://github.com/yt-dlp/yt-dlp/pull/3233
+            pb_context = {'html5Preference': 'HTML5_PREF_WANTS'}
+
+            # Use signatureTimestamp if available
+            # Thanks https://github.com/ytdl-org/youtube-dl/issues/31034#issuecomment-1160718026
+            player_url = self._extract_player_url(webpage)
+            ytcfg = self._extract_ytcfg(video_id, webpage)
+            sts = self._extract_signature_timestamp(video_id, player_url, ytcfg)
+            if sts:
+                pb_context['signatureTimestamp'] = sts
+
+            query = {
+                'playbackContext': {'contentPlaybackContext': pb_context},
+                'contentCheckOk': True,
+                'racyCheckOk': True,
+                'context': {
+                    'client': {'clientName': 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', 'clientVersion': '2.0', 'hl': 'en', 'clientScreen': 'EMBED'},
+                    'thirdParty': {'embedUrl': 'https://google.com'},
+                },
+                'videoId': video_id,
+            }
+            headers = {
+                'X-YouTube-Client-Name': '85',
+                'X-YouTube-Client-Version': '2.0',
+                'Origin': 'https://www.youtube.com'
+            }
+
+            video_info = self._call_api('player', query, video_id, fatal=False, headers=headers)
+            age_gate_status = get_playability_status(video_info)
+            if age_gate_status.get('status') == 'OK':
+                player_response = video_info
+                playability_status = age_gate_status
 
         trailer_video_id = try_get(
             playability_status,
@@ -1784,7 +1941,6 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
         formats = []
         itags = []
         itag_qualities = {}
-        player_url = None
         q = qualities(['tiny', 'small', 'medium', 'large', 'hd720', 'hd1080', 'hd1440', 'hd2160', 'hd2880', 'highres'])
         streaming_data = player_response.get('streamingData') or {}
         streaming_formats = streaming_data.get('formats') or []
@@ -1931,12 +2087,12 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             for thumbnail in (try_get(
                     container,
                     lambda x: x['thumbnail']['thumbnails'], list) or []):
-                thumbnail_url = thumbnail.get('url')
+                thumbnail_url = url_or_none(thumbnail.get('url'))
                 if not thumbnail_url:
                     continue
                 thumbnails.append({
                     'height': int_or_none(thumbnail.get('height')),
-                    'url': thumbnail_url,
+                    'url': update_url(thumbnail_url, query=None, fragment=None),
                     'width': int_or_none(thumbnail.get('width')),
                 })
             if thumbnails:
@@ -1995,8 +2151,9 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
             player_response,
             lambda x: x['captions']['playerCaptionsTracklistRenderer'], dict)
         if pctr:
-            def process_language(container, base_url, lang_code, query):
-                lang_subs = []
+
+            def process_language(container, base_url, lang_code, sub_name, query):
+                lang_subs = container.setdefault(lang_code, [])
                 for fmt in self._SUBTITLE_FORMATS:
                     query.update({
                         'fmt': fmt,
@@ -2004,30 +2161,50 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                     lang_subs.append({
                         'ext': fmt,
                         'url': update_url_query(base_url, query),
+                        'name': sub_name,
                     })
-                container[lang_code] = lang_subs
 
-            subtitles = {}
-            for caption_track in (pctr.get('captionTracks') or []):
+            def get_lang_code(track):
+                return (remove_start(track.get('vssId') or '', '.').replace('.', '-')
+                        or track.get('languageCode'))
+
+            def get_text(x):
+                return try_get(x, (lambda x: x['simpleText'],
+                                   lambda x: x['runs'][0]['text']), compat_str)
+
+            subtitles, automatic_captions = {}, {}
+            for lang_code, caption_track in dict(
+                    (get_lang_code(sub), sub) for sub in (pctr.get('captionTracks') or [])).items():
                 base_url = caption_track.get('baseUrl')
                 if not base_url:
                     continue
+                lang_name = get_text(caption_track) or lang_code
                 if caption_track.get('kind') != 'asr':
-                    lang_code = caption_track.get('languageCode')
                     if not lang_code:
                         continue
                     process_language(
-                        subtitles, base_url, lang_code, {})
-                    continue
-                automatic_captions = {}
-                for translation_language in (pctr.get('translationLanguages') or []):
-                    translation_language_code = translation_language.get('languageCode')
-                    if not translation_language_code:
+                        subtitles, base_url, lang_code, lang_name, {})
+                    if not caption_track.get('isTranslatable'):
                         continue
-                    process_language(
-                        automatic_captions, base_url, translation_language_code,
-                        {'tlang': translation_language_code})
-                info['automatic_captions'] = automatic_captions
+                for trans_code, trans_name in dict(
+                        (lang.get('languageCode'), get_text(lang.get('languageName')))
+                        for lang in pctr.get('translationLanguages') or []).items():
+                    if not trans_code:
+                        continue
+                    if caption_track.get('kind') != 'asr':
+                        trans_code += '-' + lang_code
+                        trans_name += ' from ' + lang_name
+                    # Add "-orig" label to the original language so that it can be distinguished
+                    # The subs are returned without "-orig" as well for compatibility
+                    if lang_code == 'a-' + trans_code:
+                        process_language(
+                            automatic_captions, base_url, trans_code + '-orig', trans_name + ' (Original)', {})
+                    # Setting tlang=lang returns damaged subtitles.
+                    # Not using lang_code == f'a-{trans_code}' here for future-proofing
+                    orig_lang = parse_qs(base_url).get('lang', [None])[-1]
+                    process_language(automatic_captions, base_url, trans_code, trans_name,
+                                     {} if orig_lang == trans_code else {'tlang': trans_code})
+            info['automatic_captions'] = automatic_captions
             info['subtitles'] = subtitles
 
         parsed_url = compat_urllib_parse_urlparse(url)
@@ -2141,6 +2318,7 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
                     sbr_tooltip = try_get(
                         vpir, lambda x: x['sentimentBar']['sentimentBarRenderer']['tooltip'])
                     if sbr_tooltip:
+                        # however dislike_count was hidden by YT, as if there could ever be dislikable content on YT
                         like_count, dislike_count = sbr_tooltip.split(' / ')
                         info.update({
                             'like_count': str_to_int(like_count),
@@ -2392,7 +2570,6 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             'tags': list,
             'view_count': int,
             'like_count': int,
-            'dislike_count': int,
         },
         'params': {
             'skip_download': True,
@@ -2419,7 +2596,6 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             'categories': ['News & Politics'],
             'tags': list,
             'like_count': int,
-            'dislike_count': int,
         },
         'params': {
             'skip_download': True,
@@ -2439,7 +2615,6 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             'categories': ['News & Politics'],
             'tags': ['Cenk Uygur (TV Program Creator)', 'The Young Turks (Award-Winning Work)', 'Talk Show (TV Genre)'],
             'like_count': int,
-            'dislike_count': int,
         },
         'params': {
             'skip_download': True,
@@ -3018,10 +3193,41 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             r'\bID_TOKEN["\']\s*:\s*["\'](.+?)["\']', webpage,
             'identity token', default=None)
 
+    def _process_clip(self, url, data):
+        renderer = try_get(
+            data,
+            lambda x: next(
+                (r for r in (s.get('engagementPanelSectionListRenderer')
+                             for s in x['engagementPanels'])
+                 if (r or {}).get('panelIdentifier') == 'engagement-panel-clip-view'),
+                None), dict)
+        if not renderer:
+            return
+        clip_commands = try_get(
+            renderer,
+            lambda x: x['content']['clipSectionRenderer']['contents'][0]['clipAttributionRenderer']['onScrubExit']['commandExecutorCommand']['commands'],
+            list) or []
+        clip_open = try_get(
+            clip_commands,
+            lambda x: next((c['openPopupAction'] for c in x if c.get('openPopupAction')), None),
+            dict)
+        clip_open_commands = try_get(
+            clip_open,
+            lambda x: x['popup']['notificationActionRenderer']['actionButton']['buttonRenderer']['command']['commandExecutorCommand']['commands'],
+            list) or []
+        clip_data = try_get(
+            clip_open_commands,
+            lambda x: next((c['loopCommand'] for c in x if c.get('loopCommand')), None),
+            dict)
+        if clip_data.get('postId') in url:
+            clip_times = (int_or_none(clip_data.get('startTimeMs')),
+                          int_or_none(clip_data.get('endTimeMs')))
+            if None not in clip_times:
+                self._downloader.params['_clip_args'] = '%gms,%gms' % clip_times
+
     def _real_extract(self, url):
         item_id = self._match_id(url)
-        url = compat_urlparse.urlunparse(
-            compat_urlparse.urlparse(url)._replace(netloc='www.youtube.com'))
+        url = update_url(url, netloc='www.youtube.com')
         # Handle both video/playlist URLs
         qs = parse_qs(url)
         video_id = qs.get('v', [None])[0]
@@ -3047,6 +3253,8 @@ class YoutubeTabIE(YoutubeBaseInfoExtractor):
             data, lambda x: x['currentVideoEndpoint']['watchEndpoint']['videoId'],
             compat_str) or video_id
         if video_id:
+            if item_id == 'clip':
+                self._process_clip(url, data)
             return self.url_result(video_id, ie=YoutubeIE.ie_key(), video_id=video_id)
         # Capture and output alerts
         alert = self._extract_alert(data)
@@ -3155,7 +3363,6 @@ class YoutubeYtBeIE(InfoExtractor):
             'categories': ['Nonprofits & Activism'],
             'tags': list,
             'like_count': int,
-            'dislike_count': int,
         },
         'params': {
             'noplaylist': True,

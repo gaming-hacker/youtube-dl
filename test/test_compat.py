@@ -39,8 +39,12 @@ class TestCompat(unittest.TestCase):
         self.assertEqual(compat_getenv(test_var), test_str)
 
     def test_compat_expanduser(self):
+        from youtube_dl.compat import compat_os_name
         old_home = os.environ.get('HOME')
-        test_str = r'C:\Documents and Settings\тест\Application Data'
+        if compat_os_name in ('nt', 'ce'):
+            test_str = r'C:\Documents and Settings\тест\Application Data'
+        else:
+            test_str = '/home/тест'
         compat_setenv('HOME', test_str)
         self.assertEqual(compat_expanduser('~'), test_str)
         compat_setenv('HOME', old_home or '')

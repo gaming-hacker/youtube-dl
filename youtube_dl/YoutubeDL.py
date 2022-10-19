@@ -102,7 +102,7 @@ from .downloader import get_suitable_downloader
 from .downloader.rtmp import rtmpdump_version
 from .postprocessor import (
     FFmpegFixupM3u8PP,
-    FFmpegFixupM4aPP,
+    FFmpegFixupMpegDashPP,
     FFmpegFixupStretchedPP,
     FFmpegMergerPP,
     FFmpegPostProcessor,
@@ -1745,25 +1745,49 @@ class YoutubeDL(object):
         return subs
 
     def __forced_printings(self, info_dict, filename, incomplete):
+        FIELD_ALIASES = {}
+
         def print_mandatory(field):
+            actual_field = FIELD_ALIASES.get(field, field)
             if (self.params.get('force%s' % field, False)
-                    and (not incomplete or info_dict.get(field) is not None)):
-                self.to_stdout(info_dict[field])
+                    and (not incomplete or info_dict.get(actual_field) is not None)):
+                self.to_stdout(info_dict[actual_field])
 
         def print_optional(field):
             if (self.params.get('force%s' % field, False)
                     and info_dict.get(field) is not None):
                 self.to_stdout(info_dict[field])
 
+        info_dict = info_dict.copy()
+        info_dict['duration_string'] = (  # %(duration>%H-%M-%S)s is wrong if duration > 24hrs
+            formatSeconds(info_dict['duration'])
+            if info_dict.get('duration', None) is not None
+            else None)
+        if info_dict.get('resolution') is None:
+            info_dict['resolution'] = self.format_resolution(info_dict, default=None)
+        if filename is not None:
+            info_dict['filename'] = filename
+        if info_dict.get('requested_formats') is not None:
+            # For RTMP URLs, also include the playpath
+            info_dict['urls'] = '\n'.join(f['url'] + f.get('play_path', '') for f in info_dict['requested_formats'])
+        elif 'url' in info_dict:
+            info_dict['urls'] = info_dict['url'] + info_dict.get('play_path', '')
+        if 'urls' in info_dict:
+            FIELD_ALIASES['url'] = 'urls'
+
+        for tmpl in self.params.get('forceprint', []):
+            if re.match(r'\w+$', tmpl):
+                tmpl = '%({0})s'.format(tmpl)
+            try:
+                out_txt = tmpl % info_dict
+            except KeyError:
+                self.report_warning('Skipping invalid print string "%s"' % (tmpl, ))
+                continue
+            self.to_stdout(out_txt)
+
         print_mandatory('title')
         print_mandatory('id')
-        if self.params.get('forceurl', False) and not incomplete:
-            if info_dict.get('requested_formats') is not None:
-                for f in info_dict['requested_formats']:
-                    self.to_stdout(f['url'] + f.get('play_path', ''))
-            else:
-                # For RTMP URLs, also include the playpath
-                self.to_stdout(info_dict['url'] + info_dict.get('play_path', ''))
+        print_mandatory('url')
         print_optional('thumbnail')
         print_optional('description')
         if self.params.get('forcefilename', False) and filename is not None:
@@ -1771,6 +1795,7 @@ class YoutubeDL(object):
         if self.params.get('forceduration', False) and info_dict.get('duration') is not None:
             self.to_stdout(formatSeconds(info_dict['duration']))
         print_mandatory('format')
+
         if self.params.get('forcejson', False):
             self.to_stdout(json.dumps(info_dict))
 
@@ -2003,8 +2028,8 @@ class YoutubeDL(object):
                 stretched_ratio = info_dict.get('stretched_ratio')
                 if stretched_ratio is not None and stretched_ratio != 1:
                     if fixup_policy == 'warn':
-                        self.report_warning('%s: Non-uniform pixel ratio (%s)' % (
-                            info_dict['id'], stretched_ratio))
+                        self.report_warning('Non-uniform pixel ratio (%f) in "%s".' % (
+                            stretched_ratio, filename))
                     elif fixup_policy == 'detect_or_warn':
                         stretched_pp = FFmpegFixupStretchedPP(self)
                         if stretched_pp.available:
@@ -2012,28 +2037,30 @@ class YoutubeDL(object):
                             info_dict['__postprocessors'].append(stretched_pp)
                         else:
                             self.report_warning(
-                                '%s: Non-uniform pixel ratio (%s). %s'
-                                % (info_dict['id'], stretched_ratio, INSTALL_FFMPEG_MESSAGE))
+                                'Non-uniform pixel ratio (%f) in "%s". %s'
+                                % (stretched_ratio, filename, INSTALL_FFMPEG_MESSAGE))
                     else:
                         assert fixup_policy in ('ignore', 'never')
 
                 if (info_dict.get('requested_formats') is None
-                        and info_dict.get('container') == 'm4a_dash'):
+                        and info_dict.get('container') in ('m4a_dash', 'mp4_dash')):
                     if fixup_policy == 'warn':
                         self.report_warning(
-                            '%s: writing DASH m4a. '
+                            'Writing DASH %s in "%s". '
                             'Only some players support this container.'
-                            % info_dict['id'])
+                            % ('m4a' if info_dict.get('container') == 'm4a_dash' else 'mp4',
+                                filename))
                     elif fixup_policy == 'detect_or_warn':
-                        fixup_pp = FFmpegFixupM4aPP(self)
+                        fixup_pp = FFmpegFixupMpegDashPP(self)
                         if fixup_pp.available:
                             info_dict.setdefault('__postprocessors', [])
                             info_dict['__postprocessors'].append(fixup_pp)
                         else:
                             self.report_warning(
-                                '%s: writing DASH m4a. '
+                                'Writing DASH %s in "%s". '
                                 'Only some players support this container. %s'
-                                % (info_dict['id'], INSTALL_FFMPEG_MESSAGE))
+                                % ('m4a' if info_dict.get('container') == 'm4a_dash' else 'mp4',
+                                    filename, INSTALL_FFMPEG_MESSAGE))
                     else:
                         assert fixup_policy in ('ignore', 'never')
 

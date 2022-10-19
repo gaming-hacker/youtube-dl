@@ -22,6 +22,7 @@ from ..utils import (
     dfxp2srt,
     ISO639Utils,
     replace_extension,
+    compat_str,
 )
 
 
@@ -308,9 +309,16 @@ class FFmpegExtractAudioPP(FFmpegPostProcessor):
             extension = self._preferredcodec
             more_opts = []
             if self._preferredquality is not None:
-                # The opus codec doesn't support the -aq option
-                if int(self._preferredquality) < 10 and extension != 'opus':
-                    more_opts += ['-q:a', self._preferredquality]
+                if int(self._preferredquality) < 10:
+                    if extension == 'opus':
+                        # The opus codec doesn't support the -q:a option
+                        # Magic number of 24 used to give quality numbers 0-9 *some* meaning (as suggested by "knarrff" on Github)
+                        # 0 (best quality) gives 210 kb/s
+                        # 5 (default) gives 96 kb/s
+                        # 9 (worst quality) gives 6 kb/s, which is the opus minimum (and 0 kb/s wouldn't make any sense)
+                        more_opts += ['-b:a', compat_str(max(6, int((9-int(self._preferredquality)) * 24))) + 'k']
+                    else:
+                        more_opts += ['-q:a', self._preferredquality]
                 else:
                     more_opts += ['-b:a', self._preferredquality + 'k']
             if self._preferredcodec == 'aac':
@@ -565,12 +573,18 @@ class FFmpegFixupStretchedPP(FFmpegPostProcessor):
         return [], info
 
 
-class FFmpegFixupM4aPP(FFmpegPostProcessor):
+class FFmpegFixupMpegDashPP(FFmpegPostProcessor):
     def run(self, info):
-        if info.get('container') != 'm4a_dash':
+        if info.get('container') not in ('m4a_dash', 'mp4_dash'):
             return [], info
 
         filename = info['filepath']
+        if info.get('container') == 'mp4_dash':
+            with open(encodeFilename(filename), 'rb') as f:
+                b = f.read(8)
+            if b[4:8] == b'ftyp':
+                return [], info
+
         temp_filename = prepend_extension(filename, 'temp')
 
         options = ['-c', 'copy', '-f', 'mp4']

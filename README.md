@@ -49,7 +49,7 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
 # DESCRIPTION
 **youtube-dl** is a command-line program to download videos from YouTube.com and a few more sites. It requires the Python interpreter, version 2.6, 2.7, or 3.2+, and it is not platform specific. It should work on your Unix box, on Windows or on macOS. It is released to the public domain, which means you can modify it, redistribute it or use it however you like.
 
-    youtube-dl [OPTIONS] URL [URL...]
+    youtube-dl [OPTIONS] URLS
 
 # OPTIONS
     -h, --help                           Print this help text and exit
@@ -141,10 +141,12 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                          --playlist-items 1-3,7,10-13", it will
                                          download the videos at index 1, 2, 3,
                                          7, 10, 11, 12 and 13.
-    --match-title REGEX                  Download only matching titles (regex or
-                                         caseless sub-string)
+    --match-title REGEX                  Download only matching titles (case-
+                                         insensitive regex or alphanumeric sub-
+                                         string)
     --reject-title REGEX                 Skip download for matching titles
-                                         (regex or caseless sub-string)
+                                         (case-insensitive regex or alphanumeric
+                                         sub-string)
     --max-downloads NUMBER               Abort after downloading NUMBER files
     --min-filesize SIZE                  Do not download any videos smaller than
                                          SIZE (e.g. 50k or 44.6m)
@@ -300,6 +302,10 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
     -s, --simulate                       Do not download the video and do not
                                          write anything to disk
     --skip-download                      Do not download the video
+    -O, --print TEMPLATE                 Simulate, quiet but print the given
+                                         fields. Either a field name or similar
+                                         formatting as the output template can
+                                         be used
     -g, --get-url                        Simulate, quiet but print URL
     -e, --get-title                      Simulate, quiet but print title
     --get-id                             Simulate, quiet but print id
@@ -432,7 +438,8 @@ Alternatively, refer to the [developer instructions](#developer-instructions) fo
                                          necessary (currently supported:
                                          mp4|flv|ogg|webm|mkv|avi)
     --postprocessor-args ARGS            Give these arguments to the
-                                         postprocessor
+                                         postprocessor (if postprocessing is
+                                         required)
     -k, --keep-video                     Keep the video file on disk after the
                                          post-processing; the video is erased by
                                          default
@@ -619,6 +626,12 @@ Available for the media that is a track or a part of a music album:
  - `album_artist` (string): List of all artists appeared on the album
  - `disc_number` (numeric): Number of the disc or other physical medium the track belongs to
  - `release_year` (numeric): Year (YYYY) when the album was released
+
+Available only when used in `--print`:
+
+ - `urls` (string): The URLs of all requested formats, one in each line
+ - `duration_string` (string): Length of the video (HH:mm:ss)
+ - `filename` (string): Name of the video file. Note that the actual filename may be different due to post-processing. Use `--exec echo` to get the name after all postprocessing is complete
 
 Each aforementioned sequence when referenced in an output template will be replaced by the actual value corresponding to the sequence name. Note that some of the sequences are not guaranteed to be present since they depend on the metadata obtained by a particular extractor. Such sequences will be replaced with placeholder value provided with `--output-na-placeholder` (`NA` by default).
 
@@ -1408,7 +1421,7 @@ with youtube_dl.YoutubeDL(ydl_opts) as ydl:
 
 # BUGS
 
-Bugs and suggestions should be reported at: <https://github.com/ytdl-org/youtube-dl/issues>. Unless you were prompted to or there is another pertinent reason (e.g. GitHub fails to accept the bug report), please do not send bug reports via personal email. For discussions, join us in the IRC channel [#youtube-dl](irc://chat.freenode.net/#youtube-dl) on freenode ([webchat](https://webchat.freenode.net/?randomnick=1&channels=youtube-dl)).
+Bugs and suggestions should be reported at: <https://github.com/ytdl-org/youtube-dl/issues>. Unless you were prompted to or there is another pertinent reason (e.g. GitHub fails to accept the bug report), please do not send bug reports via personal email. For discussions, join us in the IRC channel [#youtube-dl](irc://chat.libera.chat/#youtube-dl) on libera.chat ([webchat](https://web.libera.chat/?randomnick=1&channels=youtube-dl)).
 
 **Please include the full output of youtube-dl when run with `-v`**, i.e. **add** `-v` flag to **your command line**, copy the **whole** output and post it in the issue body wrapped in \`\`\` for better formatting. It should look similar to this:
 ```

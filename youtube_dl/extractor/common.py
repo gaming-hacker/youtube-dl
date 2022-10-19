@@ -70,6 +70,7 @@ from ..utils import (
     str_or_none,
     str_to_int,
     strip_or_none,
+    try_get,
     unescapeHTML,
     unified_strdate,
     unified_timestamp,
@@ -1228,6 +1229,10 @@ class InfoExtractor(object):
         if isinstance(json_ld, dict):
             json_ld = [json_ld]
 
+        def valued_dict(items):
+            """Return dict from dict or iterable of pairs omitting None values"""
+            return dict((k, v) for k, v in (items.items() if isinstance(items, dict) else items) if v is not None)
+
         INTERACTION_TYPE_MAP = {
             'CommentAction': 'comment',
             'AgreeAction': 'like',
@@ -1319,19 +1324,25 @@ class InfoExtractor(object):
                     part_of_series = e.get('partOfSeries') or e.get('partOfTVSeries')
                     if isinstance(part_of_series, dict) and part_of_series.get('@type') in ('TVSeries', 'Series', 'CreativeWorkSeries'):
                         info['series'] = unescapeHTML(part_of_series.get('name'))
-                elif item_type == 'Movie':
+                elif item_type in ('TVSeries', 'Series', 'CreativeWorkSeries'):
+                    series_name = unescapeHTML(e.get('name'))
                     info.update({
+                        'series': series_name,
+                    })
+                elif item_type == 'Movie':
+                    # here and in the next, don't erase existing value with None
+                    info.update(valued_dict({
                         'title': unescapeHTML(e.get('name')),
                         'description': unescapeHTML(e.get('description')),
                         'duration': parse_duration(e.get('duration')),
                         'timestamp': unified_timestamp(e.get('dateCreated')),
-                    })
+                    }))
                 elif item_type in ('Article', 'NewsArticle'):
-                    info.update({
+                    info.update(valued_dict({
                         'timestamp': parse_iso8601(e.get('datePublished')),
                         'title': unescapeHTML(e.get('headline')),
                         'description': unescapeHTML(e.get('articleBody')),
-                    })
+                    }))
                 elif item_type == 'VideoObject':
                     extract_video_object(e)
                     if expected_type is None:
@@ -1345,7 +1356,7 @@ class InfoExtractor(object):
                     continue
                 else:
                     break
-        return dict((k, v) for k, v in info.items() if v is not None)
+        return valued_dict(info)
 
     @staticmethod
     def _hidden_inputs(html):
@@ -2713,7 +2724,7 @@ class InfoExtractor(object):
 
     def _find_jwplayer_data(self, webpage, video_id=None, transform_source=js_to_json):
         mobj = re.search(
-            r'(?s)jwplayer\((?P<quote>[\'"])[^\'" ]+(?P=quote)\)(?!</script>).*?\.setup\s*\((?P<options>[^)]+)\)',
+            r'''(?s)jwplayer\s*\(\s*(?P<q>'|")(?!(?P=q)).+(?P=q)\s*\)(?!</script>).*?\.\s*setup\s*\(\s*(?P<options>[^)]+)\s*\)''',
             webpage)
         if mobj:
             try:
@@ -2734,6 +2745,10 @@ class InfoExtractor(object):
 
     def _parse_jwplayer_data(self, jwplayer_data, video_id=None, require_title=True,
                              m3u8_id=None, mpd_id=None, rtmp_params=None, base_url=None):
+        if try_get(jwplayer_data, lambda x: x.get('playlist') or True) is None:
+            # not a dict
+            return {}
+
         # JWPlayer backward compatibility: flattened playlists
         # https://github.com/jwplayer/jwplayer/blob/v7.4.3/src/js/api/config.js#L81-L96
         if 'playlist' not in jwplayer_data:
@@ -2814,11 +2829,11 @@ class InfoExtractor(object):
             urls.append(source_url)
             source_type = source.get('type') or ''
             ext = mimetype2ext(source_type) or determine_ext(source_url)
-            if source_type == 'hls' or ext == 'm3u8':
+            if source_type == 'hls' or ext == 'm3u8' or 'format=m3u8-aapl' in source_url:
                 formats.extend(self._extract_m3u8_formats(
                     source_url, video_id, 'mp4', entry_protocol='m3u8_native',
                     m3u8_id=m3u8_id, fatal=False))
-            elif source_type == 'dash' or ext == 'mpd':
+            elif source_type == 'dash' or ext == 'mpd' or 'format=mpd-time-csf' in source_url:
                 formats.extend(self._extract_mpd_formats(
                     source_url, video_id, mpd_id=mpd_id, fatal=False))
             elif ext == 'smil':
@@ -2833,12 +2848,13 @@ class InfoExtractor(object):
                     'ext': ext,
                 })
             else:
+                format_id = str_or_none(source.get('label'))
                 height = int_or_none(source.get('height'))
-                if height is None:
+                if height is None and format_id:
                     # Often no height is provided but there is a label in
                     # format like "1080p", "720p SD", or 1080.
                     height = int_or_none(self._search_regex(
-                        r'^(\d{3,4})[pP]?(?:\b|$)', compat_str(source.get('label') or ''),
+                        r'^(\d{3,4})[pP]?(?:\b|$)', format_id,
                         'height', default=None))
                 a_format = {
                     'url': source_url,
@@ -2847,6 +2863,9 @@ class InfoExtractor(object):
                     'tbr': int_or_none(source.get('bitrate'), scale=1000),
                     'ext': ext,
                 }
+                if format_id:
+                    a_format['format_id'] = format_id
+
                 if source_url.startswith('rtmp'):
                     a_format['ext'] = 'flv'
                     # See com/longtailvideo/jwplayer/media/RTMPMediaProvider.as

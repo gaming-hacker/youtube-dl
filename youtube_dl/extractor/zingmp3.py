@@ -1,23 +1,49 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import hashlib
+import hmac
+import re
+from youtube_dl.compat import compat_urllib_parse_urlencode
+
 from .common import InfoExtractor
 from ..utils import (
-    ExtractorError,
     int_or_none,
+    try_get,
+    ExtractorError,
+    dict_get,
 )
 
 
 class ZingMp3BaseIE(InfoExtractor):
-    _VALID_URL_TMPL = r'https?://(?:mp3\.zing|zingmp3)\.vn/(?:%s)/[^/]+/(?P<id>\w+)\.html'
+    _VALID_URL_TMPL = r'https?://(?:mp3\.zing|zingmp3)\.vn/(?P<type>(?:%s))/[^/]+/(?P<id>\w+)($|\W)'
     _GEO_COUNTRIES = ['VN']
+    _DOMAIN = 'https://zingmp3.vn'
+    _SLUG_API = {
+        'bai-hat': '/api/v2/page/get/song',
+        'embed': '/api/v2/page/get/song',
+        'video-clip': '/api/v2/page/get/video',
+        'playlist': '/api/v2/page/get/playlist',
+        'album': '/api/v2/page/get/playlist',
+        'lyric': '/api/v2/lyric/get/lyric',
+        'song_streaming': '/api/v2/song/get/streaming',
+    }
 
-    def _extract_item(self, item, fatal):
-        item_id = item['id']
-        title = item.get('name') or item['title']
+    _API_KEY = '88265e23d4284f25963e6eedac8fbfa3'
+    _SECRET_KEY = b'2aa2d1c561e809b267f3638c4a307aab'
+
+    def _extract_item(self, item, song_id, type_url, fatal):
+        item_id = item.get('encodeId') or song_id
+        title = dict_get(item, ('title', 'alias')) or item['title']
+
+        if type_url == 'video-clip':
+            source = item.get('streaming')
+        else:
+            api = self.get_api_with_signature(name_api=self._SLUG_API.get('song_streaming'), param={'id': item_id})
+            source = self._download_json(api, video_id=item_id).get('data')
 
         formats = []
-        for k, v in (item.get('source') or {}).items():
+        for k, v in (source or {}).items():
             if not v:
                 continue
             if k in ('mp4', 'hls'):
@@ -36,30 +62,32 @@ class ZingMp3BaseIE(InfoExtractor):
                                 r'^(\d+)p', res, 'resolution', default=None)),
                         })
             else:
-                formats.append({
-                    'ext': 'mp3',
-                    'format_id': k,
-                    'tbr': int_or_none(k),
-                    'url': self._proto_relative_url(v),
-                    'vcodec': 'none',
-                })
+                if v != 'VIP':
+                    formats.append({
+                        'ext': 'mp3',
+                        'format_id': k,
+                        'tbr': int_or_none(k),
+                        'url': self._proto_relative_url(v),
+                        'vcodec': 'none',
+                    })
         if not formats:
             if not fatal:
                 return
-            msg = item['msg']
+            msg = item.get('msg')
             if msg == 'Sorry, this content is not available in your country.':
                 self.raise_geo_restricted(countries=self._GEO_COUNTRIES)
-            raise ExtractorError(msg, expected=True)
         self._sort_formats(formats)
 
-        subtitles = None
         lyric = item.get('lyric')
-        if lyric:
-            subtitles = {
-                'origin': [{
-                    'url': lyric,
-                }],
-            }
+        if not lyric:
+            api = self.get_api_with_signature(name_api=self._SLUG_API.get("lyric"), param={'id': item_id})
+            info_lyric = self._download_json(api, video_id=item_id)
+            lyric = try_get(info_lyric, lambda x: x['data']['file'])
+        subtitles = {
+            'origin': [{
+                'url': lyric,
+            }],
+        } if lyric else None
 
         album = item.get('album') or {}
 
@@ -67,30 +95,54 @@ class ZingMp3BaseIE(InfoExtractor):
             'id': item_id,
             'title': title,
             'formats': formats,
-            'thumbnail': item.get('thumbnail'),
+            'thumbnail': try_get(item, lambda x: x['thumbnail']) or try_get(item, lambda x: x['thumbnailM']),
             'subtitles': subtitles,
-            'duration': int_or_none(item.get('duration')),
+            'duration': int_or_none(try_get(item, lambda x: x['duration'])),
             'track': title,
-            'artist': item.get('artists_names'),
-            'album': album.get('name') or album.get('title'),
-            'album_artist': album.get('artists_names'),
+            'artist': try_get(item, lambda x: x['artistsNames']) or try_get(item, lambda x: x['artists_names']),
+            'album': try_get(album, lambda x: x['name']) or try_get(album, lambda x: x['title']),
+            'album_artist': try_get(album, lambda x: x['artistsNames']) or try_get(album, lambda x: x['artists_names']),
         }
 
     def _real_extract(self, url):
-        page_id = self._match_id(url)
-        webpage = self._download_webpage(
-            url.replace('://zingmp3.vn/', '://mp3.zing.vn/'),
-            page_id, query={'play_song': 1})
-        data_path = self._search_regex(
-            r'data-xml="([^"]+)', webpage, 'data path')
-        return self._process_data(self._download_json(
-            'https://mp3.zing.vn/xhr' + data_path, page_id)['data'])
+        mobj = re.match(self._VALID_URL, url)
+
+        song_id = mobj.group('id')
+        type_url = mobj.group('type')
+        api = self.get_api_with_signature(name_api=self._SLUG_API[type_url], param={'id': song_id})
+
+        # Check the cookie file, if cookie file doesn't exist, create a dummy request to update the cookie
+        if not self._downloader.params.get('cookiefile'):
+            self._download_json(api, video_id=song_id, note='Dummy request to update cookie')
+
+        info = self._download_json(api, video_id=song_id)
+
+        if not info:
+            raise ExtractorError('Can not extract data.')
+
+        return self._process_data(info.get('data'), song_id, type_url)
+
+    def get_api_with_signature(self, name_api, param):
+        sha256 = self.sha256_params(''.join('%s=%s' % (k, v) for k, v in param.items()))
+
+        data = {
+            'apiKey': self._API_KEY,
+            'sig': self.hmac512_string('%s%s' % (name_api, sha256))
+        }
+        data.update(param)
+        return '%s%s?%s' % (self._DOMAIN, name_api, compat_urllib_parse_urlencode(data))
+
+    def sha256_params(self, string):
+        return hashlib.sha256(string.encode('utf-8')).hexdigest()
+
+    def hmac512_string(self, string):
+        return hmac.new(self._SECRET_KEY, string.encode('utf-8'), hashlib.sha512).hexdigest()
 
 
 class ZingMp3IE(ZingMp3BaseIE):
-    _VALID_URL = ZingMp3BaseIE._VALID_URL_TMPL % 'bai-hat|video-clip'
+    _VALID_URL = ZingMp3BaseIE._VALID_URL_TMPL % 'bai-hat|video-clip|embed'
     _TESTS = [{
-        'url': 'http://mp3.zing.vn/bai-hat/Xa-Mai-Xa-Bao-Thy/ZWZB9WAB.html',
+        'url': 'https://zingmp3.vn/bai-hat/Xa-Mai-Xa-Bao-Thy/ZWZB9WAB.html',
         'md5': 'ead7ae13693b3205cbc89536a077daed',
         'info_dict': {
             'id': 'ZWZB9WAB',
@@ -109,7 +161,7 @@ class ZingMp3IE(ZingMp3BaseIE):
             'album_artist': 'Bảo Thy',
         },
     }, {
-        'url': 'https://mp3.zing.vn/video-clip/Suong-Hoa-Dua-Loi-K-ICM-RYO/ZO8ZF7C7.html',
+        'url': 'https://zingmp3.vn/video-clip/Suong-Hoa-Dua-Loi-K-ICM-RYO/ZO8ZF7C7.html',
         'md5': 'e9c972b693aa88301ef981c8151c4343',
         'info_dict': {
             'id': 'ZO8ZF7C7',
@@ -121,14 +173,17 @@ class ZingMp3IE(ZingMp3BaseIE):
             'artist': 'K-ICM, RYO',
         },
     }, {
+        'url': 'https://zingmp3.vn/embed/song/ZWZEI76B?start=false',
+        'only_matching': True,
+    }, {
         'url': 'https://zingmp3.vn/bai-hat/Xa-Mai-Xa-Bao-Thy/ZWZB9WAB.html',
         'only_matching': True,
     }]
     IE_NAME = 'zingmp3'
-    IE_DESC = 'mp3.zing.vn'
+    IE_DESC = 'zingmp3.vn'
 
-    def _process_data(self, data):
-        return self._extract_item(data, True)
+    def _process_data(self, data, song_id, type_url):
+        return self._extract_item(data, song_id, type_url, True)
 
 
 class ZingMp3AlbumIE(ZingMp3BaseIE):
@@ -140,7 +195,7 @@ class ZingMp3AlbumIE(ZingMp3BaseIE):
             'id': 'ZWZBWDAF',
             'title': 'Lâu Đài Tình Ái',
         },
-        'playlist_count': 10,
+        'playlist_count': 9,
     }, {
         'url': 'http://mp3.zing.vn/playlist/Duong-Hong-Loan-apollobee/IWCAACCB.html',
         'only_matching': True,
@@ -150,12 +205,12 @@ class ZingMp3AlbumIE(ZingMp3BaseIE):
     }]
     IE_NAME = 'zingmp3:album'
 
-    def _process_data(self, data):
+    def _process_data(self, data, song_id, type_url):
         def entries():
-            for item in (data.get('items') or []):
-                entry = self._extract_item(item, False)
+            for item in (try_get(data, lambda x: x['song']['items']) or []):
+                entry = self._extract_item(item, song_id, type_url, False)
                 if entry:
                     yield entry
-        info = data.get('info') or {}
-        return self.playlist_result(
-            entries(), info.get('id'), info.get('name') or info.get('title'))
+
+        album_id = data.get('id') or data.get('encodeId')
+        return self.playlist_result(entries(), album_id, data.get('name') or data.get('title'))
