@@ -26,7 +26,7 @@
  - **AcademicEarth:Course**
  - **acast**
  - **acast:channel**
- - **ADN**: Anime Digital Network
+ - **ADN**: Animation Digital Network
  - **AdobeConnect**
  - **adobetv**
  - **adobetv:channel**
@@ -289,6 +289,7 @@
  - **EMPFlix**
  - **Engadget**
  - **Eporner**
+ - **Erocast**
  - **EroProfile**
  - **Escapist**
  - **ESPN**
@@ -607,6 +608,7 @@
  - **ndr:embed:base**
  - **NDTV**
  - **NerdCubedFeed**
+ - **Nest**
  - **netease:album**: 网易云音乐 - 专辑
  - **netease:djradio**: 网易云音乐 - 电台
  - **netease:mv**: 网易云音乐 - MV
