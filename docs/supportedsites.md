@@ -582,6 +582,7 @@
  - **MySpace:album**
  - **MySpass**
  - **Myvi**
+ - **MyVideoGe**
  - **MyVidster**
  - **MyviEmbed**
  - **MyVisionTV**
@@ -1167,6 +1168,7 @@
  - **Vodlocker**
  - **VODPl**
  - **VODPlatform**
+ - **voe**: VOE.SX
  - **VoiceRepublic**
  - **Voot**
  - **VoxMedia**
