@@ -144,6 +144,7 @@
  - **BusinessInsider**
  - **BuzzFeed**
  - **BYUtv**
+ - **Callin**
  - **Camdemy**
  - **CamdemyFolder**
  - **CamModels**
@@ -307,6 +308,7 @@
  - **fc2**
  - **fc2:embed**
  - **Fczenit**
+ - **Fifa**
  - **Filmarkivet.se**
  - **filmon**
  - **filmon:channel**
